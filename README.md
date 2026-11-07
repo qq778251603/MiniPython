@@ -177,7 +177,6 @@ def add(a, b):
     return a + b
 )");
     engine.setBytecode(compiled);
-    engine.run();
 
     // 现在 engine.script.functions 里真的有 greet 和 add 的 function_t
     for (auto& f : engine.script.functions) {
@@ -537,7 +536,6 @@ def add(a, b):
     return a + b
 )");
     engine.setBytecode(compiled);
-    engine.run();
 
     // engine.script.functions now contains real function_t entries
     for (auto& f : engine.script.functions) {
