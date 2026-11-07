@@ -99,36 +99,39 @@ int main(void) {
     // 2. 执行一段脚本
     mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
-    // 3. 注册原生函数到一个 FFI 库
-    //    注意: mp_vm_load_lib 只把库注册到解释器内部, 不会自动注入全局作用域。
-    //    要让 Python 侧能用 import mylib, 需要执行一次 import 语句让 importlib 装载。
+    // 3. 注册原生函数到 FFI 库
+    //    注意: mp_vm_load_lib 只把库注册到解释器内部的 cffiLibraries,
+    //    不会自动往全局作用域 setVariable 模块名。
+    //    所以 import mylib 和 mp_call_name("mylib.add") 都不工作。
+    //    正确的做法是: 用 from mylib import add 让 importlib 把成员注入全局作用域。
     void* lib = mp_lib_new("mylib");
     mp_lib_add_function(lib, "add", (void*)my_add, NULL);
     mp_vm_load_lib(vm, lib);
 
-    // 4. 触发 importlib 把 mylib 装进全局作用域
-    mp_vm_exec_main(vm, "import mylib");
+    // 4. 触发 from-import, 把 mylib.add 注入全局作用域
+    mp_vm_exec_main(vm, "from mylib import add");
 
-    // 5. 直接在 C 侧用 mp_call 调用: 先 get_global("mylib"), 再 getattr("add"), 再 call
-    void* mylib  = mp_vm_get_global(vm, "mylib");
-    void* myadd  = mp_getattr(vm, mylib, "add");
+    // 5. C 侧直接调: get_global("add") → call
     void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-    void* result = mp_call(vm, myadd, args, 2);
+    void* fn    = mp_vm_get_global(vm, "add");
+    void* result = mp_call(vm, fn, args, 2);
 
     // 6. 读回结果
     long long sum = mp_value_as_int(result);
     printf("mylib.add(3, 4) = %lld\n", sum);
 
-    // 7. 也可以直接让 Python 脚本调 —— 最简洁的方式
-    mp_vm_exec_main(vm, "print(mylib.add(100, 200))");
+    // 7. 更简洁的方式: 直接让 Python 脚本调 —— 一行解决
+    mp_vm_exec_main(vm, "from mylib import add; print(add(100, 200))");
 
-    // 8. 显式注入全局变量, 让脚本里能用到
+    // 8. 也可以用 from mylib import * 批量注入
+    mp_vm_exec_main(vm, "from mylib import *");
+
+    // 9. 显式注入全局变量, 让脚本里能用到
     mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
     mp_vm_exec_main(vm, "print('tag =', tag)");
 
-    // 9. 清理: 先释放值, 再销毁解释器
-    mp_value_release(mylib);
-    mp_value_release(myadd);
+    // 10. 清理: 先释放值, 再销毁解释器
+    mp_value_release(fn);
     mp_value_release(result);
     mp_vm_free(vm);
     return 0;
@@ -505,36 +508,40 @@ int main(void) {
     mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
     // 3. Register the native function into an FFI library.
-    //    Note: mp_vm_load_lib only registers internally — it does NOT inject the
-    //    module name into the global scope. Python-side `import mylib` must run
-    //    once so importlib puts the module dict into scopes[0].
+    //    Note: mp_vm_load_lib only pushes into the internal cffiLibraries
+    //    list — it never writes the module name into the global scope.
+    //    So `import mylib` is effectively a no-op, and mp_call_name("mylib.add", ...)
+    //    does NOT resolve dot-paths (finds nothing → returns null).
+    //    The correct path: `from mylib import add` triggers the import system to
+    //    construct an ffi_instance and setVariable it — that's what populates scopes[0].
     void* lib = mp_lib_new("mylib");
     mp_lib_add_function(lib, "add", (void*)my_add, NULL);
     mp_vm_load_lib(vm, lib);
 
-    // 4. Trigger importlib to populate the global scope with `mylib`
-    mp_vm_exec_main(vm, "import mylib");
+    // 4. Trigger from-import to inject the member into the global scope
+    mp_vm_exec_main(vm, "from mylib import add");
 
-    // 5. Call from C: get_global("mylib") → getattr("add") → call
-    void* mylib  = mp_vm_get_global(vm, "mylib");
-    void* myadd  = mp_getattr(vm, mylib, "add");
+    // 5. Call from C: get_global("add") → call
     void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-    void* result = mp_call(vm, myadd, args, 2);
+    void* fn     = mp_vm_get_global(vm, "add");
+    void* result = mp_call(vm, fn, args, 2);
 
     // 6. Read the value back into C
     long long sum = mp_value_as_int(result);
     printf("mylib.add(3, 4) = %lld\n", sum);
 
     // 7. Or just let Python call it — the most compact path
-    mp_vm_exec_main(vm, "print(mylib.add(100, 200))");
+    mp_vm_exec_main(vm, "from mylib import add; print(add(100, 200))");
 
-    // 8. Inject a global variable, then run a script that uses it
+    // 8. Batch import works too
+    mp_vm_exec_main(vm, "from mylib import *");
+
+    // 9. Inject a global variable, then run a script that uses it
     mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
     mp_vm_exec_main(vm, "print('tag =', tag)");
 
-    // 9. Cleanup: release all value handles before tearing down the vm
-    mp_value_release(mylib);
-    mp_value_release(myadd);
+    // 10. Cleanup: release values before tearing down the vm
+    mp_value_release(fn);
     mp_value_release(result);
     mp_vm_free(vm);
     return 0;
