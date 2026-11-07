@@ -134,28 +134,39 @@ mp_vm_free(vm);
 
 MiniPython 的核心引擎是 `minipy::vm` 类，包含词法分析器、语法分析器、字节码虚拟机全部能力。C++ 项目可以直接 `#include "minipy.h"`，通过 `vm` 类以面向对象方式使用全部功能，无需经由 C-API 句柄层。
 
+以下示例全部可独立编译运行。
+
 #### 最简：启动 + 执行脚本
 
 ```cpp
 #include "minipy.h"
+#include <iostream>
 
-minipy::vm engine;
-engine.usestdlib();   // 加载全部内置标准库
-engine.execSource(R"(
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();          // 加载全部内置标准库
+    engine.execSource(R"(
 import math
 print('Hello, MiniPython!')
 print(math.sqrt(2))
 )");
+    return 0;
+}
 ```
 
 #### 调用脚本中定义的函数
 
 ```cpp
-minipy::vm engine;
-engine.usestdlib();
+#include "minipy.h"
+#include <iostream>
+#include <vector>
 
-// 执行脚本，同时函数定义注入全局作用域
-engine.execSource(R"(
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
+
+    // 执行脚本，函数定义自动注入全局作用域
+    engine.execSource(R"(
 def greet(name):
     return f'Hello, {name}!'
 
@@ -163,151 +174,183 @@ def add(a, b):
     return a + b
 )");
 
-// 方式一：从全局变量表中取出函数 value
-minipy::value greetVal = engine.findVariable("greet");
-// 函数 value 的 ptr 就是 function_t*
-auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
+    // 方式一：从全局变量表取出函数 value，强转为 function_t*
+    minipy::value greetVal = engine.findVariable("greet");
+    auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
 
-std::vector<minipy::value> args = { engine.makeString("World") };
-minipy::value result = engine.invoke(greetFn, args);
-std::cout << engine.toString(result) << std::endl;   // Hello, World!
+    std::vector<minipy::value> args = { engine.makeString("World") };
+    minipy::value result = engine.invoke(greetFn, args);
+    std::cout << engine.toString(result) << std::endl;   // Hello, World!
 
-// 方式二：直接遍历 engine.script.functions 数组
-for (auto& f : engine.script.functions) {
-    if (f.name == "add") {
-        std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
-        minipy::value sum = engine.invoke(&f, args2);
-        std::cout << engine.toInt(sum) << std::endl;   // 7
-        break;
+    // 方式二：直接遍历 engine.script.functions 数组按名查找
+    for (auto& f : engine.script.functions) {
+        if (f.name == "add") {
+            std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
+            minipy::value sum = engine.invoke(&f, args2);
+            std::cout << engine.toInt(sum) << std::endl;   // 7
+            break;
+        }
     }
+    return 0;
 }
 ```
 
 #### 在 C++ 侧注册原生函数（FFI）
 
-原生回调签名为 `minipy::value (*)(minipy::cffi&)`，`cffi` 上下文提供 `arg_int()`、`arg_float()`、`mkstr()`、`mkint()` 等便捷接口：
+原生回调签名为 `minipy::value (*)(minipy::cffi&)`，`cffi` 上下文提供 `arg_int()`、`arg_float()`、`arg_str()`、`kwarg_bool()`、`mkstr()`、`mkint()`、`mkfloat()` 等便捷接口。
 
 ```cpp
+#include "minipy.h"
 #include <cmath>
+#include <iostream>
 
-minipy::vm engine;
-engine.usestdlib();
+// 被注册到 ffilib 的全局函数（不能是捕获型 lambda, 必须是纯函数指针）
+static minipy::value cffiMySin(minipy::cffi& ctx) {
+    double x = ctx.arg_float(0);          // 第 0 个位置参数转浮点
+    return ctx.mkfloat(std::sin(x));      // 直接从 cffi 构造返回 value
+}
 
-minipy::ffilib lib;
-lib.name = "mylib";
+static minipy::value cffiGreet(minipy::cffi& ctx) {
+    std::string name = ctx.arg_str(0);                     // 位置参数
+    bool excited = ctx.kwarg_bool("excited", false);       // 关键字参数, 带默认值
+    std::string msg = "Hello, " + name + (excited ? "!" : ".");
+    return ctx.mkstr(msg);
+}
 
-// 注册一个 std::sin 包装函数
-lib.functions["my_sin"] = reinterpret_cast<void*>(
-    [](minipy::cffi& ctx) -> minipy::value {
-        double x = ctx.arg_float(0);          // 第 0 个位置参数转浮点
-        return ctx.mkfloat(std::sin(x));      // 返回一个浮点 value
-    }
-);
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-// 注册一个支持关键字参数的函数
-lib.functions["greet"] = reinterpret_cast<void*>(
-    [](minipy::cffi& ctx) -> minipy::value {
-        std::string name = ctx.arg_str(0);                    // 位置参数
-        bool excited = ctx.kwarg_bool("excited", false);      // 关键字参数, 带默认值
-        std::string msg = "Hello, " + name + (excited ? "!" : ".");
-        return ctx.mkstr(msg);
-    }
-);
+    minipy::ffilib lib;
+    lib.name = "mylib";
 
-engine.loadlib(lib);
+    // ffilib.functions 类型为 std::map<std::string, void*>
+    // 回调签名是 minipy::cffi_native_function, 注册时强转为 void*
+    lib.functions["my_sin"] = reinterpret_cast<void*>(cffiMySin);
+    lib.functions["greet"]  = reinterpret_cast<void*>(cffiGreet);
 
-// Python 侧直接调用
-engine.execSource(R"(
+    engine.loadlib(lib);
+
+    // Python 侧直接 import 调用
+    engine.execSource(R"(
 import mylib
 print(mylib.my_sin(0.0))                   # 0.0
 print(mylib.greet('MiniPython'))           # Hello, MiniPython.
 print(mylib.greet('World', excited=True))  # Hello, World!
 )");
+    return 0;
+}
 ```
 
 #### 操作 Python 容器（list / dict）
 
 ```cpp
-minipy::vm engine;
-engine.usestdlib();
+#include "minipy.h"
+#include <iostream>
 
-// 构造一个 list
-minipy::value myList = engine.makeList({
-    engine.makeInt(10),
-    engine.makeFloat(2.5),
-    engine.makeString("hi")
-});
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-// 构造一个 dict
-minipy::value myDict = engine.makeDict();
-engine.dictSet(myDict, engine.makeString("name"), engine.makeString("Alice"));
-engine.dictSet(myDict, engine.makeString("age"),  engine.makeInt(30));
+    // 构造 list
+    minipy::value myList = engine.makeList({
+        engine.makeInt(10),
+        engine.makeFloat(2.5),
+        engine.makeString("hi")
+    });
 
-// 作为全局变量注入 Python 脚本
-engine.setVariable("data", myList);
-engine.setVariable("info", myDict);
-engine.execSource("""
-print(data)        # [10, 2.5, 'hi']
-print(info)        # {'name': 'Alice', 'age': 30}
+    // 构造 dict 并逐项写入
+    minipy::value myDict = engine.makeDict();
+    engine.dictSet(myDict, engine.makeString("name"), engine.makeString("Alice"));
+    engine.dictSet(myDict, engine.makeString("age"),  engine.makeInt(30));
+
+    // 注入全局变量, Python 脚本中可直接使用
+    engine.setVariable("data", myList);
+    engine.setVariable("info", myDict);
+    engine.execSource(R"(
+print(data)               # [10, 2.5, 'hi']
+print(info)               # {'name': 'Alice', 'age': 30}
 print(info['name'])
-""");
+)");
 
-// 从 Python 取回全局变量
-auto* back = engine.findVariablePtr("info");
-std::cout << engine.toString(*back) << std::endl;
+    // 从 Python 取回全局变量
+    auto* back = engine.findVariablePtr("info");
+    std::cout << engine.toString(*back) << std::endl;
+    return 0;
+}
 ```
 
 #### 调用运算符 / 方法 / 下标
 
 ```cpp
-minipy::value a = engine.makeInt(10);
-minipy::value b = engine.makeInt(3);
+#include "minipy.h"
+#include <iostream>
 
-// 二元运算
-minipy::value r1 = engine.applyBinary("+", a, b);    // 13
-minipy::value r2 = engine.applyBinary("/", a, b);    // 3.333...
-minipy::value r3 = engine.applyBinary("==", a, b);   // False
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-// 一元运算
-minipy::value r4 = engine.applyUnary("-", a);        // -10
+    minipy::value a = engine.makeInt(10);
+    minipy::value b = engine.makeInt(3);
 
-// 属性访问
-minipy::value module = engine.findVariable("math");
-minipy::value pi = engine.getAttribute(module, "pi");
+    // 二元运算
+    minipy::value r1 = engine.applyBinary("+", a, b);    // 13
+    minipy::value r2 = engine.applyBinary("/", a, b);    // 3.333...
+    minipy::value r3 = engine.applyBinary("==", a, b);   // False
 
-// 下标
-minipy::value lst = engine.makeList({
-    engine.makeInt(1), engine.makeInt(2), engine.makeInt(3)
-});
-minipy::value second = engine.indexValue(lst, engine.makeInt(1));  // 2
+    // 一元运算
+    minipy::value r4 = engine.applyUnary("-", a);        // -10
+
+    // 属性访问: 先从全局表拿到 math 模块, 再读 pi
+    minipy::value module = engine.findVariable("math");
+    minipy::value pi = engine.getAttribute(module, "pi");
+    std::cout << "pi = " << engine.toString(pi) << std::endl;
+
+    // 下标
+    minipy::value lst = engine.makeList({
+        engine.makeInt(1), engine.makeInt(2), engine.makeInt(3)
+    });
+    minipy::value second = engine.indexValue(lst, engine.makeInt(1));  // 2
+    std::cout << "lst[1] = " << engine.toString(second) << std::endl;
+    return 0;
+}
 ```
 
 #### 字节码编译 + 序列化
 
 ```cpp
-minipy::vm engine;
+#include "minipy.h"
+#include <vector>
+#include <cstdio>
 
-// 把源码预编译成字节码并保存
-std::vector<unsigned char> bytecode = engine.compileBytecode(R"(
+int main() {
+    // 阶段一: 预编译源码成字节码并写入磁盘
+    minipy::vm engineA;
+    std::vector<unsigned char> bytecode = engineA.compileBytecode(R"(
 def fib(n):
     if n < 2: return n
     return fib(n - 1) + fib(n - 2)
 )");
 
-// 写入文件
-FILE* fp = std::fopen("fib.bytecode", "wb");
-std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
-std::fclose(fp);
+    FILE* fp = std::fopen("fib.bytecode", "wb");
+    std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
+    std::fclose(fp);
 
-// 下次直接加载字节码，跳过编译阶段
-std::fseek(fp, 0, SEEK_END);
-long size = std::ftell(fp); std::fseek(fp, 0, SEEK_SET);
-std::vector<unsigned char> buf(size);
-std::fread(buf.data(), 1, size, fp); std::fclose(fp);
+    // 阶段二: 下次直接加载字节码, 跳过语法分析, 启动更快
+    fp = std::fopen("fib.bytecode", "rb");
+    std::fseek(fp, 0, SEEK_END);
+    long size = std::ftell(fp);
+    std::fseek(fp, 0, SEEK_SET);
+    std::vector<unsigned char> buf(size);
+    std::fread(buf.data(), 1, size, fp);
+    std::fclose(fp);
 
-minipy::vm engine2;
-engine2.setBytecode(buf);
-engine2.run();   // 直接执行
+    minipy::vm engineB;
+    engineB.usestdlib();
+    engineB.setBytecode(buf);    // 载入已序列化的 script_t
+    engineB.run();              // 直接执行
+    return 0;
+}
 ```
 
 #### vm 类常用方法速查
@@ -447,27 +490,38 @@ mp_vm_free(vm);
 
 The core engine is `minipy::vm`, which bundles the lexer, parser, and bytecode VM into a single C++ class. C++ projects can `#include "minipy.h"` and use it directly without going through the C handle layer.
 
+All examples below are self-contained and compile out of the box.
+
 #### Minimal bootstrap
 
 ```cpp
 #include "minipy.h"
+#include <iostream>
 
-minipy::vm engine;
-engine.usestdlib();   // Load every builtin stdlib module
-engine.execSource(R"(
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();          // Load every builtin stdlib module
+    engine.execSource(R"(
 import math
 print('Hello, MiniPython!')
 print(math.sqrt(2))
 )");
+    return 0;
+}
 ```
 
 #### Calling a function defined in Python
 
 ```cpp
-minipy::vm engine;
-engine.usestdlib();
+#include "minipy.h"
+#include <iostream>
+#include <vector>
 
-engine.execSource(R"(
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
+
+    engine.execSource(R"(
 def greet(name):
     return f'Hello, {name}!'
 
@@ -475,132 +529,173 @@ def add(a, b):
     return a + b
 )");
 
-// Option A: fetch the function as a global variable, then cast
-minipy::value greetVal = engine.findVariable("greet");
-auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
+    // Option A: fetch the function as a global variable, then cast
+    minipy::value greetVal = engine.findVariable("greet");
+    auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
 
-std::vector<minipy::value> args = { engine.makeString("World") };
-minipy::value result = engine.invoke(greetFn, args);
-std::cout << engine.toString(result) << std::endl;   // Hello, World!
+    std::vector<minipy::value> args = { engine.makeString("World") };
+    minipy::value result = engine.invoke(greetFn, args);
+    std::cout << engine.toString(result) << std::endl;   // Hello, World!
 
-// Option B: iterate engine.script.functions directly
-for (auto& f : engine.script.functions) {
-    if (f.name == "add") {
-        std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
-        minipy::value sum = engine.invoke(&f, args2);
-        std::cout << engine.toInt(sum) << std::endl;   // 7
-        break;
+    // Option B: iterate engine.script.functions directly
+    for (auto& f : engine.script.functions) {
+        if (f.name == "add") {
+            std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
+            minipy::value sum = engine.invoke(&f, args2);
+            std::cout << engine.toInt(sum) << std::endl;   // 7
+            break;
+        }
     }
+    return 0;
 }
 ```
 
 #### Registering native functions on the C++ side (FFI)
 
-The native callback signature is `minipy::value (*)(minipy::cffi&)`. The `cffi` context provides convenient helpers like `arg_int()`, `arg_float()`, `mkstr()`, `mkint()`:
+The native callback signature is `minipy::value (*)(minipy::cffi&)`. The `cffi` context provides helpers like `arg_int()`, `arg_float()`, `arg_str()`, `kwarg_bool()`, `mkstr()`, `mkint()`, `mkfloat()`. Callback functions must be plain global functions — no capturing lambdas.
 
 ```cpp
+#include "minipy.h"
 #include <cmath>
+#include <iostream>
 
-minipy::vm engine;
-engine.usestdlib();
+// Plain global function registered into ffilib (non-capturing function pointer)
+static minipy::value cffiMySin(minipy::cffi& ctx) {
+    double x = ctx.arg_float(0);          // positional arg #0 as float
+    return ctx.mkfloat(std::sin(x));      // build return value directly from ctx
+}
 
-minipy::ffilib lib;
-lib.name = "mylib";
+static minipy::value cffiGreet(minipy::cffi& ctx) {
+    std::string name = ctx.arg_str(0);                     // positional arg
+    bool excited = ctx.kwarg_bool("excited", false);       // keyword arg with default
+    std::string msg = "Hello, " + name + (excited ? "!" : ".");
+    return ctx.mkstr(msg);
+}
 
-lib.functions["my_sin"] = reinterpret_cast<void*>(
-    [](minipy::cffi& ctx) -> minipy::value {
-        double x = ctx.arg_float(0);
-        return ctx.mkfloat(std::sin(x));
-    }
-);
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-lib.functions["greet"] = reinterpret_cast<void*>(
-    [](minipy::cffi& ctx) -> minipy::value {
-        std::string name = ctx.arg_str(0);
-        bool excited = ctx.kwarg_bool("excited", false);
-        std::string msg = "Hello, " + name + (excited ? "!" : ".");
-        return ctx.mkstr(msg);
-    }
-);
+    minipy::ffilib lib;
+    lib.name = "mylib";
 
-engine.loadlib(lib);
+    // ffilib.functions is std::map<std::string, void*>
+    // callback type is minipy::cffi_native_function, cast to void* on registration
+    lib.functions["my_sin"] = reinterpret_cast<void*>(cffiMySin);
+    lib.functions["greet"]  = reinterpret_cast<void*>(cffiGreet);
 
-engine.execSource(R"(
+    engine.loadlib(lib);
+
+    engine.execSource(R"(
 import mylib
 print(mylib.my_sin(0.0))                   # 0.0
 print(mylib.greet('MiniPython'))           # Hello, MiniPython.
 print(mylib.greet('World', excited=True))  # Hello, World!
 )");
+    return 0;
+}
 ```
 
 #### Manipulating Python containers (list / dict)
 
 ```cpp
-minipy::vm engine;
-engine.usestdlib();
+#include "minipy.h"
+#include <iostream>
 
-minipy::value myList = engine.makeList({
-    engine.makeInt(10),
-    engine.makeFloat(2.5),
-    engine.makeString("hi")
-});
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-minipy::value myDict = engine.makeDict();
-engine.dictSet(myDict, engine.makeString("name"), engine.makeString("Alice"));
-engine.dictSet(myDict, engine.makeString("age"),  engine.makeInt(30));
+    minipy::value myList = engine.makeList({
+        engine.makeInt(10),
+        engine.makeFloat(2.5),
+        engine.makeString("hi")
+    });
 
-engine.setVariable("data", myList);
-engine.setVariable("info", myDict);
-engine.execSource("""
-print(data)        # [10, 2.5, 'hi']
-print(info)        # {'name': 'Alice', 'age': 30}
+    minipy::value myDict = engine.makeDict();
+    engine.dictSet(myDict, engine.makeString("name"), engine.makeString("Alice"));
+    engine.dictSet(myDict, engine.makeString("age"),  engine.makeInt(30));
+
+    engine.setVariable("data", myList);
+    engine.setVariable("info", myDict);
+    engine.execSource(R"(
+print(data)               # [10, 2.5, 'hi']
+print(info)               # {'name': 'Alice', 'age': 30}
 print(info['name'])
-""");
+)");
 
-auto* back = engine.findVariablePtr("info");
-std::cout << engine.toString(*back) << std::endl;
+    auto* back = engine.findVariablePtr("info");
+    std::cout << engine.toString(*back) << std::endl;
+    return 0;
+}
 ```
 
 #### Operators / methods / subscript
 
 ```cpp
-minipy::value a = engine.makeInt(10);
-minipy::value b = engine.makeInt(3);
+#include "minipy.h"
+#include <iostream>
 
-minipy::value r1 = engine.applyBinary("+", a, b);    // 13
-minipy::value r2 = engine.applyBinary("/", a, b);    // 3.333...
-minipy::value r3 = engine.applyBinary("==", a, b);   // False
-minipy::value r4 = engine.applyUnary("-", a);        // -10
+int main() {
+    minipy::vm engine;
+    engine.usestdlib();
 
-minipy::value module = engine.findVariable("math");
-minipy::value pi = engine.getAttribute(module, "pi");
+    minipy::value a = engine.makeInt(10);
+    minipy::value b = engine.makeInt(3);
 
-minipy::value lst = engine.makeList({
-    engine.makeInt(1), engine.makeInt(2), engine.makeInt(3)
-});
-minipy::value second = engine.indexValue(lst, engine.makeInt(1));   // 2
+    minipy::value r1 = engine.applyBinary("+", a, b);    // 13
+    minipy::value r2 = engine.applyBinary("/", a, b);    // 3.333...
+    minipy::value r3 = engine.applyBinary("==", a, b);   // False
+    minipy::value r4 = engine.applyUnary("-", a);        // -10
+
+    minipy::value module = engine.findVariable("math");
+    minipy::value pi = engine.getAttribute(module, "pi");
+    std::cout << "pi = " << engine.toString(pi) << std::endl;
+
+    minipy::value lst = engine.makeList({
+        engine.makeInt(1), engine.makeInt(2), engine.makeInt(3)
+    });
+    minipy::value second = engine.indexValue(lst, engine.makeInt(1));   // 2
+    std::cout << "lst[1] = " << engine.toString(second) << std::endl;
+    return 0;
+}
 ```
 
 #### Bytecode compilation + serialization
 
 ```cpp
-minipy::vm engine;
+#include "minipy.h"
+#include <vector>
+#include <cstdio>
 
-std::vector<unsigned char> bytecode = engine.compileBytecode(R"(
+int main() {
+    // Phase A: compile source into bytecode and write to disk
+    minipy::vm engineA;
+    std::vector<unsigned char> bytecode = engineA.compileBytecode(R"(
 def fib(n):
     if n < 2: return n
     return fib(n - 1) + fib(n - 2)
 )");
 
-FILE* fp = std::fopen("fib.bytecode", "wb");
-std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
-std::fclose(fp);
+    FILE* fp = std::fopen("fib.bytecode", "wb");
+    std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
+    std::fclose(fp);
 
-// Load bytecode directly next time, skipping compilation
-// ... read the file into buf ...
-minipy::vm engine2;
-engine2.setBytecode(buf);
-engine2.run();
+    // Phase B: next time load bytecode directly, skipping parsing entirely
+    fp = std::fopen("fib.bytecode", "rb");
+    std::fseek(fp, 0, SEEK_END);
+    long size = std::ftell(fp);
+    std::fseek(fp, 0, SEEK_SET);
+    std::vector<unsigned char> buf(size);
+    std::fread(buf.data(), 1, size, fp);
+    std::fclose(fp);
+
+    minipy::vm engineB;
+    engineB.usestdlib();
+    engineB.setBytecode(buf);    // load pre-serialized script_t
+    engineB.run();              // execute directly
+    return 0;
+}
 ```
 
 #### `vm` class quick reference
