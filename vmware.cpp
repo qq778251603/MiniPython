@@ -1857,6 +1857,26 @@ std::string vm::toString(const value& v) {
     if (v.type == "str"){
         return *static_cast<std::string*>(v.ptr);
     }
+    if (v.type == "bytes"){
+        auto* raw = static_cast<std::string*>(v.ptr);
+        std::string result = "b'";
+        for (unsigned char ch : *raw){
+            if (ch == '\n') result += "\\n";
+            else if (ch == '\r') result += "\\r";
+            else if (ch == '\t') result += "\\t";
+            else if (ch == '\\') result += "\\\\";
+            else if (ch == '\'') result += "\\'";
+            else if (ch < 32 || ch > 126){
+                char buf[8];
+                std::snprintf(buf, sizeof(buf), "\\x%02x", ch);
+                result += buf;
+            } else {
+                result.push_back(static_cast<char>(ch));
+            }
+        }
+        result += "'";
+        return result;
+    }
     if (v.type == "range"){
         auto* range = static_cast<range_t*>(v.ptr);
         std::string text = "range(" + std::to_string(range->start) + ", " +
