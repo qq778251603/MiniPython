@@ -405,10 +405,7 @@ src/
 ├── vmware.hpp / .cpp   # 字节码虚拟机（核心）
 ├── cffi.hpp / .cpp     # FFI 机制
 ├── minipy_capi.cpp     # C-API 实现
-├── lib/                # 标准库模块（math / json / os / re ...）
-├── build/              # 编译产物
-├── build64.bat         # 64 位构建脚本
-└── build32.bat         # 32 位构建脚本
+└── lib/                # 标准库模块（math / json / os / re ...）
 ```
 
 ### 许可
