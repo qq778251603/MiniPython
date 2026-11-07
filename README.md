@@ -99,24 +99,36 @@ int main(void) {
     // 2. 执行一段脚本
     mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
-    // 3. 注册原生函数到一个模块
+    // 3. 注册原生函数到一个 FFI 库
+    //    注意: mp_vm_load_lib 只把库注册到解释器内部, 不会自动注入全局作用域。
+    //    要让 Python 侧能用 import mylib, 需要执行一次 import 语句让 importlib 装载。
     void* lib = mp_lib_new("mylib");
     mp_lib_add_function(lib, "add", (void*)my_add, NULL);
     mp_vm_load_lib(vm, lib);
 
-    // 4. 在 C 侧直接调用 Python 全局路径 (mylib.add)
-    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-    void* result = mp_call_name(vm, "mylib.add", args, 2);
+    // 4. 触发 importlib 把 mylib 装进全局作用域
+    mp_vm_exec_main(vm, "import mylib");
 
-    // 5. 读回结果 —— minipy 会自动打印, 这里只是演示取值
+    // 5. 直接在 C 侧用 mp_call 调用: 先 get_global("mylib"), 再 getattr("add"), 再 call
+    void* mylib  = mp_vm_get_global(vm, "mylib");
+    void* myadd  = mp_getattr(vm, mylib, "add");
+    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
+    void* result = mp_call(vm, myadd, args, 2);
+
+    // 6. 读回结果
     long long sum = mp_value_as_int(result);
     printf("mylib.add(3, 4) = %lld\n", sum);
 
-    // 6. 显式注入全局变量, 让脚本里能用到
+    // 7. 也可以直接让 Python 脚本调 —— 最简洁的方式
+    mp_vm_exec_main(vm, "print(mylib.add(100, 200))");
+
+    // 8. 显式注入全局变量, 让脚本里能用到
     mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
     mp_vm_exec_main(vm, "print('tag =', tag)");
 
-    // 7. 清理: 先释放值, 再销毁解释器
+    // 9. 清理: 先释放值, 再销毁解释器
+    mp_value_release(mylib);
+    mp_value_release(myadd);
     mp_value_release(result);
     mp_vm_free(vm);
     return 0;
@@ -492,25 +504,37 @@ int main(void) {
     // 2. Run a quick script
     mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
-    // 3. Register the native function into a module
+    // 3. Register the native function into an FFI library.
+    //    Note: mp_vm_load_lib only registers internally — it does NOT inject the
+    //    module name into the global scope. Python-side `import mylib` must run
+    //    once so importlib puts the module dict into scopes[0].
     void* lib = mp_lib_new("mylib");
     mp_lib_add_function(lib, "add", (void*)my_add, NULL);
     mp_vm_load_lib(vm, lib);
 
-    // 4. Call the Python-visible path (mylib.add) directly from C
-    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-    void* result = mp_call_name(vm, "mylib.add", args, 2);
+    // 4. Trigger importlib to populate the global scope with `mylib`
+    mp_vm_exec_main(vm, "import mylib");
 
-    // 5. Read the value back — MiniPython prints on its own;
-    //    this just demonstrates pulling the handle into C
+    // 5. Call from C: get_global("mylib") → getattr("add") → call
+    void* mylib  = mp_vm_get_global(vm, "mylib");
+    void* myadd  = mp_getattr(vm, mylib, "add");
+    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
+    void* result = mp_call(vm, myadd, args, 2);
+
+    // 6. Read the value back into C
     long long sum = mp_value_as_int(result);
     printf("mylib.add(3, 4) = %lld\n", sum);
 
-    // 6. Inject a global variable, then run a script that uses it
+    // 7. Or just let Python call it — the most compact path
+    mp_vm_exec_main(vm, "print(mylib.add(100, 200))");
+
+    // 8. Inject a global variable, then run a script that uses it
     mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
     mp_vm_exec_main(vm, "print('tag =', tag)");
 
-    // 7. Cleanup: release values first, then tear down the interpreter
+    // 9. Cleanup: release all value handles before tearing down the vm
+    mp_value_release(mylib);
+    mp_value_release(myadd);
     mp_value_release(result);
     mp_vm_free(vm);
     return 0;
