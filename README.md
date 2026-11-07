@@ -349,37 +349,28 @@ int main() {
 
 #### 字节码编译 + 序列化
 
+`compileBytecode` 把源码编译成可序列化的 `std::vector<unsigned char>`，`setBytecode` 把它灌回 engine 并跳过语法分析直接执行。这对"源码预编译后在多个 engine 实例之间传递"或"持久化到外部存储"等场景很有用：
+
 ```cpp
 #include <MiniPython/minipy.h>
 #include <vector>
-#include <cstdio>
 
 int main() {
-    // 阶段一: 预编译源码成字节码并写入磁盘
+    // 1. 预编译源码成字节码 (内存中就是 std::vector<unsigned char>)
     minipy::vm engineA;
     std::vector<unsigned char> bytecode = engineA.compileBytecode(R"(
 def fib(n):
     if n < 2: return n
     return fib(n - 1) + fib(n - 2)
 )");
+    // 此时 bytecode 可以: 传给另一个 engine, 写到数据库 blob,
+    // 或直接 memcpy 进嵌入式资源 —— 完全由调用方决定持久化策略。
 
-    FILE* fp = std::fopen("fib.bytecode", "wb");
-    std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
-    std::fclose(fp);
-
-    // 阶段二: 下次直接加载字节码, 跳过语法分析, 启动更快
-    fp = std::fopen("fib.bytecode", "rb");
-    std::fseek(fp, 0, SEEK_END);
-    long size = std::ftell(fp);
-    std::fseek(fp, 0, SEEK_SET);
-    std::vector<unsigned char> buf(size);
-    std::fread(buf.data(), 1, size, fp);
-    std::fclose(fp);
-
+    // 2. 另一个 engine 直接用字节码启动, 跳过词法/语法分析
     minipy::vm engineB;
     engineB.usestdlib();
-    engineB.setBytecode(buf);    // 载入已序列化的 script_t
-    engineB.run();              // 直接执行
+    engineB.setBytecode(bytecode);   // 载入已序列化的 script_t
+    engineB.run();                  // 执行顶层 body
     return 0;
 }
 ```
@@ -729,37 +720,29 @@ int main() {
 
 #### Bytecode compilation + serialization
 
+`compileBytecode` compiles source into a serializable `std::vector<unsigned char>`, and `setBytecode` feeds it back into an engine — skipping lexing/parsing entirely. This is useful for shipping pre-compiled bytecode across engine instances or persisting it into your own storage layer:
+
 ```cpp
 #include <MiniPython/minipy.h>
 #include <vector>
-#include <cstdio>
 
 int main() {
-    // Phase A: compile source into bytecode and write to disk
+    // 1. Pre-compile source into bytecode (lives as std::vector<unsigned char>)
     minipy::vm engineA;
     std::vector<unsigned char> bytecode = engineA.compileBytecode(R"(
 def fib(n):
     if n < 2: return n
     return fib(n - 1) + fib(n - 2)
 )");
+    // The bytecode is yours to keep: pass it to another engine,
+    // store it in a DB blob, memcpy it into embedded resources —
+    // MiniPython does not enforce any persistence strategy.
 
-    FILE* fp = std::fopen("fib.bytecode", "wb");
-    std::fwrite(bytecode.data(), 1, bytecode.size(), fp);
-    std::fclose(fp);
-
-    // Phase B: next time load bytecode directly, skipping parsing entirely
-    fp = std::fopen("fib.bytecode", "rb");
-    std::fseek(fp, 0, SEEK_END);
-    long size = std::ftell(fp);
-    std::fseek(fp, 0, SEEK_SET);
-    std::vector<unsigned char> buf(size);
-    std::fread(buf.data(), 1, size, fp);
-    std::fclose(fp);
-
+    // 2. Another engine boots directly from bytecode, no lexer/parser pass
     minipy::vm engineB;
     engineB.usestdlib();
-    engineB.setBytecode(buf);    // load pre-serialized script_t
-    engineB.run();              // execute directly
+    engineB.setBytecode(bytecode);   // load the pre-serialized script_t
+    engineB.run();                  // execute the top-level body
     return 0;
 }
 ```
