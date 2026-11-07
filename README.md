@@ -156,6 +156,8 @@ print(math.sqrt(2))
 
 #### 调用脚本中定义的函数
 
+先用 `compile → setBytecode → run` 让编译结果落进 engine 的持久状态（`engine.script.functions` 是真正的 `function_t` 数组），然后直接按名遍历取出调用。
+
 ```cpp
 #include <MiniPython/minipy.h>
 #include <iostream>
@@ -165,35 +167,37 @@ int main() {
     minipy::vm engine;
     engine.usestdlib();
 
-    // 执行脚本，函数定义自动注入全局作用域
-    engine.execSource(R"(
+    // compile → setBytecode 把函数表 move 进 engine.script.functions
+    // run() 清空 scopes、push 全局 scope、执行顶层代码
+    minipy::script_t compiled = engine.compile(R"(
 def greet(name):
     return f'Hello, {name}!'
 
 def add(a, b):
     return a + b
 )");
+    engine.setBytecode(compiled);
+    engine.run();
 
-    // 方式一：从全局变量表取出函数 value，强转为 function_t*
-    minipy::value greetVal = engine.findVariable("greet");
-    auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
-
-    std::vector<minipy::value> args = { engine.makeString("World") };
-    minipy::value result = engine.invoke(greetFn, args);
-    std::cout << engine.toString(result) << std::endl;   // Hello, World!
-
-    // 方式二：直接遍历 engine.script.functions 数组按名查找
+    // 现在 engine.script.functions 里真的有 greet 和 add 的 function_t
     for (auto& f : engine.script.functions) {
+        if (f.name == "greet") {
+            std::vector<minipy::value> args = { engine.makeString("World") };
+            // invoke 的参数必须是 function_t*
+            minipy::value result = engine.invoke(&f, args);
+            std::cout << engine.toString(result) << std::endl;   // Hello, World!
+        }
         if (f.name == "add") {
-            std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
-            minipy::value sum = engine.invoke(&f, args2);
+            std::vector<minipy::value> args = { engine.makeInt(3), engine.makeInt(4) };
+            minipy::value sum = engine.invoke(&f, args);
             std::cout << engine.toInt(sum) << std::endl;   // 7
-            break;
         }
     }
     return 0;
 }
 ```
+
+> **为什么不能只用 `execSource`？** `execSource` 把源码编译到**栈上局部** `script_t nested`，不写 `this->script`，也不管理 scopes 的 push/pop。所以之后 `engine.script.functions` 为空，也拿不到任何 `function_t*`。必须走 `compile → setBytecode → run` 这条管线。
 
 #### 在 C++ 侧注册原生函数（FFI）
 
@@ -512,6 +516,8 @@ print(math.sqrt(2))
 
 #### Calling a function defined in Python
 
+Run `compile → setBytecode → run` so the compiled result lands in the engine's persistent state (`engine.script.functions` is a real `function_t` array), then iterate by name and invoke.
+
 ```cpp
 #include <MiniPython/minipy.h>
 #include <iostream>
@@ -521,34 +527,37 @@ int main() {
     minipy::vm engine;
     engine.usestdlib();
 
-    engine.execSource(R"(
+    // compile → setBytecode moves the function table into engine.script.functions
+    // run() clears scopes, pushes a fresh global scope, executes top-level body
+    minipy::script_t compiled = engine.compile(R"(
 def greet(name):
     return f'Hello, {name}!'
 
 def add(a, b):
     return a + b
 )");
+    engine.setBytecode(compiled);
+    engine.run();
 
-    // Option A: fetch the function as a global variable, then cast
-    minipy::value greetVal = engine.findVariable("greet");
-    auto* greetFn = static_cast<minipy::function_t*>(greetVal.ptr);
-
-    std::vector<minipy::value> args = { engine.makeString("World") };
-    minipy::value result = engine.invoke(greetFn, args);
-    std::cout << engine.toString(result) << std::endl;   // Hello, World!
-
-    // Option B: iterate engine.script.functions directly
+    // engine.script.functions now contains real function_t entries
     for (auto& f : engine.script.functions) {
+        if (f.name == "greet") {
+            std::vector<minipy::value> args = { engine.makeString("World") };
+            // invoke requires a function_t*
+            minipy::value result = engine.invoke(&f, args);
+            std::cout << engine.toString(result) << std::endl;   // Hello, World!
+        }
         if (f.name == "add") {
-            std::vector<minipy::value> args2 = { engine.makeInt(3), engine.makeInt(4) };
-            minipy::value sum = engine.invoke(&f, args2);
+            std::vector<minipy::value> args = { engine.makeInt(3), engine.makeInt(4) };
+            minipy::value sum = engine.invoke(&f, args);
             std::cout << engine.toInt(sum) << std::endl;   // 7
-            break;
         }
     }
     return 0;
 }
 ```
+
+> **Why not just `execSource`?** `execSource` compiles into a **stack-local** `script_t nested`, never touches `this->script`, and does not manage scopes push/pop. Afterwards `engine.script.functions` is empty and no `function_t*` can be obtained. Always go through `compile → setBytecode → run`.
 
 #### Registering native functions on the C++ side (FFI)
 
