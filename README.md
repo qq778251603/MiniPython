@@ -27,7 +27,7 @@ MiniPython 是一款用 C++20 编写的开源 Python 解释器库。它既可以
 - **体积小巧** — 整个核心仅由几十个头源文件组成，编译产物紧凑，适合对二进制体积敏感的场景
 - **零外部依赖** — 核心解释器不依赖任何第三方库，链接即可使用
 - **架构开放** — 内置 FFI 机制，可自由注册原生函数、类和数据，也能装载 `.pyd` / `.dll` 扩展模块
-- **开发集成便捷高效** — 统一的 C-API 句柄模型、完整的错误处理、自动引用计数，一行 `#include "minipy.h"` 即可集成
+- **开发集成便捷高效** — 统一的 C-API 句柄模型、完整的错误处理、自动引用计数，一行 `#include <MiniPython/minipy.h>` 即可集成
 - **兼容 Python 二进制扩展生态** — 支持加载 `.pyd` 扩展库，能够复用现有的 Python 二进制扩展模块
 
 ### 技术架构
@@ -78,7 +78,7 @@ string     sys       time
 MiniPython 对外暴露一组纯 C 接口（`minipy.h`），所有内部实现细节完全隐藏：
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 
 // 创建解释器
 void* vm = mp_vm_new();
@@ -132,14 +132,14 @@ mp_vm_free(vm);
 
 ### C++ 直接调用（vm 类接口）
 
-MiniPython 的核心引擎是 `minipy::vm` 类，包含词法分析器、语法分析器、字节码虚拟机全部能力。C++ 项目可以直接 `#include "minipy.h"`，通过 `vm` 类以面向对象方式使用全部功能，无需经由 C-API 句柄层。
+MiniPython 的核心引擎是 `minipy::vm` 类，包含词法分析器、语法分析器、字节码虚拟机全部能力。C++ 项目可以直接 `#include <MiniPython/minipy.h>`，通过 `vm` 类以面向对象方式使用全部功能，无需经由 C-API 句柄层。
 
 以下示例全部可独立编译运行。
 
 #### 最简：启动 + 执行脚本
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -157,7 +157,7 @@ print(math.sqrt(2))
 #### 调用脚本中定义的函数
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 #include <vector>
 
@@ -200,7 +200,7 @@ def add(a, b):
 原生回调签名为 `minipy::value (*)(minipy::cffi&)`，`cffi` 上下文提供 `arg_int()`、`arg_float()`、`arg_str()`、`kwarg_bool()`、`mkstr()`、`mkint()`、`mkfloat()` 等便捷接口。
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <cmath>
 #include <iostream>
 
@@ -245,7 +245,7 @@ print(mylib.greet('World', excited=True))  # Hello, World!
 #### 操作 Python 容器（list / dict）
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -283,7 +283,7 @@ print(info['name'])
 #### 调用运算符 / 方法 / 下标
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -319,7 +319,7 @@ int main() {
 #### 字节码编译 + 序列化
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <vector>
 #include <cstdio>
 
@@ -406,7 +406,7 @@ MiniPython is an open-source Python interpreter library written in C++20. It can
 - **Small footprint** — The entire core is just dozens of source files; compiled output is compact, ideal for size-sensitive deployments
 - **Zero external dependencies** — No third-party libraries required for the core interpreter; just link and use
 - **Open architecture** — Built-in FFI lets you freely register native functions, classes, and data; also supports loading `.pyd` / `.dll` extension modules
-- **Convenient and efficient integration** — Uniform handle model, complete error handling, automatic reference counting; `#include "minipy.h"` is all it takes
+- **Convenient and efficient integration** — Uniform handle model, complete error handling, automatic reference counting; `#include <MiniPython/minipy.h>` is all it takes
 - **Python binary extension ecosystem** — Supports loading `.pyd` extension libraries, reusing existing Python binary extension modules
 
 ### Architecture
@@ -455,7 +455,7 @@ Built-in functions include `abs`, `all`, `any`, `bin`, `bool`, `chr`, `compile`,
 All internal details are hidden behind a clean C interface (`minipy.h`):
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 
 // Create an interpreter
 void* vm = mp_vm_new();
@@ -488,14 +488,14 @@ mp_vm_free(vm);
 
 ### Direct C++ Usage (the `vm` class)
 
-The core engine is `minipy::vm`, which bundles the lexer, parser, and bytecode VM into a single C++ class. C++ projects can `#include "minipy.h"` and use it directly without going through the C handle layer.
+The core engine is `minipy::vm`, which bundles the lexer, parser, and bytecode VM into a single C++ class. C++ projects can `#include <MiniPython/minipy.h>` and use it directly without going through the C handle layer.
 
 All examples below are self-contained and compile out of the box.
 
 #### Minimal bootstrap
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -513,7 +513,7 @@ print(math.sqrt(2))
 #### Calling a function defined in Python
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 #include <vector>
 
@@ -555,7 +555,7 @@ def add(a, b):
 The native callback signature is `minipy::value (*)(minipy::cffi&)`. The `cffi` context provides helpers like `arg_int()`, `arg_float()`, `arg_str()`, `kwarg_bool()`, `mkstr()`, `mkint()`, `mkfloat()`. Callback functions must be plain global functions — no capturing lambdas.
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <cmath>
 #include <iostream>
 
@@ -599,7 +599,7 @@ print(mylib.greet('World', excited=True))  # Hello, World!
 #### Manipulating Python containers (list / dict)
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -633,7 +633,7 @@ print(info['name'])
 #### Operators / methods / subscript
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <iostream>
 
 int main() {
@@ -664,7 +664,7 @@ int main() {
 #### Bytecode compilation + serialization
 
 ```cpp
-#include "minipy.h"
+#include <MiniPython/minipy.h>
 #include <vector>
 #include <cstdio>
 
