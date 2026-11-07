@@ -75,39 +75,52 @@ string     sys       time
 
 ### C-API 概览
 
-MiniPython 对外暴露一组纯 C 接口（`minipy.h`），所有内部实现细节完全隐藏：
+MiniPython 对外暴露一组纯 C 接口（`minipy.h`），所有内部实现细节完全隐藏。以下示例是可独立编译运行的完整 C 程序：
 
-```cpp
+```c
+#include <stdio.h>
 #include <MiniPython/minipy.h>
 
-// 创建解释器
-void* vm = mp_vm_new();
-mp_vm_use_stdlib(vm);
-
-// 执行脚本
-mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
-
-// 嵌入原生函数
-int add(void* user, void* ctx, void** out) {
-    size_t argc = mp_ctx_argc(ctx);
-    void* a = mp_ctx_arg(ctx, 0);
-    void* b = mp_ctx_arg(ctx, 1);
-    *out = mp_int(mp_ctx_vm(ctx),
-                  mp_value_as_int(a) + mp_value_as_int(b));
+// 被嵌入的原生函数 —— 必须在文件作用域定义, 签名固定
+// 返回 MP_OK 表示成功, 非零值表示异常
+static int my_add(void* userdata, void* ctx, void** out) {
+    void* vm = mp_ctx_vm(ctx);
+    long long a = mp_value_as_int(mp_ctx_arg(ctx, 0));
+    long long b = mp_value_as_int(mp_ctx_arg(ctx, 1));
+    *out = mp_int(vm, a + b);     // 从 vm 构造返回值句柄
     return MP_OK;
 }
 
-void* lib = mp_lib_new("mylib");
-mp_lib_add_function(lib, "add", (void*)add, nullptr);
-mp_vm_load_lib(vm, lib);
+int main(void) {
+    // 1. 创建解释器 + 加载标准库
+    void* vm = mp_vm_new();
+    mp_vm_use_stdlib(vm);
 
-// 调用全局函数
-void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-void* result = mp_call_name(vm, "mylib.add", args, 2);
+    // 2. 执行一段脚本
+    mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
-// 清理
-mp_value_release(result);
-mp_vm_free(vm);
+    // 3. 注册原生函数到一个模块
+    void* lib = mp_lib_new("mylib");
+    mp_lib_add_function(lib, "add", (void*)my_add, NULL);
+    mp_vm_load_lib(vm, lib);
+
+    // 4. 在 C 侧直接调用 Python 全局路径 (mylib.add)
+    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
+    void* result = mp_call_name(vm, "mylib.add", args, 2);
+
+    // 5. 读回结果 —— minipy 会自动打印, 这里只是演示取值
+    long long sum = mp_value_as_int(result);
+    printf("mylib.add(3, 4) = %lld\n", sum);
+
+    // 6. 显式注入全局变量, 让脚本里能用到
+    mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
+    mp_vm_exec_main(vm, "print('tag =', tag)");
+
+    // 7. 清理: 先释放值, 再销毁解释器
+    mp_value_release(result);
+    mp_vm_free(vm);
+    return 0;
+}
 ```
 
 #### API 模块一览
@@ -455,38 +468,53 @@ Built-in functions include `abs`, `all`, `any`, `bin`, `bool`, `chr`, `compile`,
 
 ### C-API Snapshot
 
-All internal details are hidden behind a clean C interface (`minipy.h`):
+All internal details are hidden behind a clean C interface (`minipy.h`). The example below is a complete, standalone C program that compiles and runs:
 
-```cpp
+```c
+#include <stdio.h>
 #include <MiniPython/minipy.h>
 
-// Create an interpreter
-void* vm = mp_vm_new();
-mp_vm_use_stdlib(vm);
-
-// Run a script
-mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
-
-// Embed a native function
-int add(void* user, void* ctx, void** out) {
+// Native function to embed — must be file-scope with this exact signature.
+// Return MP_OK on success, non-zero to signal an exception.
+static int my_add(void* userdata, void* ctx, void** out) {
     void* vm = mp_ctx_vm(ctx);
     long long a = mp_value_as_int(mp_ctx_arg(ctx, 0));
     long long b = mp_value_as_int(mp_ctx_arg(ctx, 1));
-    *out = mp_int(vm, a + b);
+    *out = mp_int(vm, a + b);     // build the return handle from the vm
     return MP_OK;
 }
 
-void* lib = mp_lib_new("mylib");
-mp_lib_add_function(lib, "add", (void*)add, nullptr);
-mp_vm_load_lib(vm, lib);
+int main(void) {
+    // 1. Create interpreter + load stdlib
+    void* vm = mp_vm_new();
+    mp_vm_use_stdlib(vm);
 
-// Call a global function
-void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
-void* result = mp_call_name(vm, "mylib.add", args, 2);
+    // 2. Run a quick script
+    mp_vm_exec_main(vm, "print('Hello, MiniPython!')");
 
-// Cleanup
-mp_value_release(result);
-mp_vm_free(vm);
+    // 3. Register the native function into a module
+    void* lib = mp_lib_new("mylib");
+    mp_lib_add_function(lib, "add", (void*)my_add, NULL);
+    mp_vm_load_lib(vm, lib);
+
+    // 4. Call the Python-visible path (mylib.add) directly from C
+    void* args[] = { mp_int(vm, 3), mp_int(vm, 4) };
+    void* result = mp_call_name(vm, "mylib.add", args, 2);
+
+    // 5. Read the value back — MiniPython prints on its own;
+    //    this just demonstrates pulling the handle into C
+    long long sum = mp_value_as_int(result);
+    printf("mylib.add(3, 4) = %lld\n", sum);
+
+    // 6. Inject a global variable, then run a script that uses it
+    mp_vm_set_global(vm, "tag", mp_str(vm, "from C"));
+    mp_vm_exec_main(vm, "print('tag =', tag)");
+
+    // 7. Cleanup: release values first, then tear down the interpreter
+    mp_value_release(result);
+    mp_vm_free(vm);
+    return 0;
+}
 ```
 
 ### Direct C++ Usage (the `vm` class)
