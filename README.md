@@ -196,7 +196,7 @@ def add(a, b):
 }
 ```
 
-> **为什么不能只用 `execSource`？** `execSource` 把源码编译到**栈上局部** `script_t nested`，不写 `this->script`，也不管理 scopes 的 push/pop。所以之后 `engine.script.functions` 为空，也拿不到任何 `function_t*`。必须走 `compile → setBytecode → run` 这条管线。
+> **为什么不能只用 `execSource`？** `execSource` 把源码编译到**栈上局部** `script_t nested`，不写 `this->script`，也不管理 scopes 的 push/pop。所以之后 `engine.script.functions` 为空，也拿不到任何 `function_t*`。必须走 `compile → setBytecode` 这条管线。
 
 #### 在 C++ 侧注册原生函数（FFI）
 
@@ -555,7 +555,7 @@ def add(a, b):
 }
 ```
 
-> **Why not just `execSource`?** `execSource` compiles into a **stack-local** `script_t nested`, never touches `this->script`, and does not manage scopes push/pop. Afterwards `engine.script.functions` is empty and no `function_t*` can be obtained. Always go through `compile → setBytecode → run`.
+> **Why not just `execSource`?** `execSource` compiles into a **stack-local** `script_t nested`, never touches `this->script`, and does not manage scopes push/pop. Afterwards `engine.script.functions` is empty and no `function_t*` can be obtained. Always go through `compile → setBytecode`.
 
 #### Registering native functions on the C++ side (FFI)
 
