@@ -110,9 +110,9 @@ bool textMatches(const std::string& pattern, const std::string& text){
 // ᠲᠥᠷᠥᠯ ᠬᠠᠯᠠᠬᠤ
 value defaultCategory(cffi& a){
     value result = a.none();
-    if (a.library && cffiCallData(*a.library, "UserWarning", *a.vm, result))
+    if (a.library && cffiCallData(*a.library, "UserWarning", *a.vmPtr, result))
         return result;
-    return a.vm->makeDynamicObject("UserWarning", nullptr, nullptr, nullptr);
+    return a.vmPtr->makeDynamicObject("UserWarning", nullptr, nullptr, nullptr);
 }
 
 // 创建一条警告记录对象
@@ -147,8 +147,8 @@ void printWarning(const std::string& message, const std::string& category,
 // warn_explicit ᠶᠢᠨ ᠭᠣᠯ ᠯᠣᠭᠢᠬᠣ
 value warnCore(cffi& a, const std::string& message, const value& category,
                const std::string& filename, long long lineno){
-    WarnState& st = stateOf(a.vm);
-    std::string catName = categoryName(*a.vm, category);
+    WarnState& st = stateOf(a.vmPtr);
+    std::string catName = categoryName(*a.vmPtr, category);
     Filter* matched = nullptr;
     for (auto& filter : st.filters){
         if (!categoryMatches(filter.category, catName)) continue;
@@ -161,7 +161,7 @@ value warnCore(cffi& a, const std::string& message, const value& category,
     std::string action = matched ? matched->action : "default";
 
     if (action == "error"){
-        a.vm->raiseError(catName, message);
+        a.vmPtr->raiseError(catName, message);
         return a.none();
     }
     if (action == "ignore") return a.none();
@@ -182,7 +182,7 @@ value warnCore(cffi& a, const std::string& message, const value& category,
     }
 
     if (st.recorder.type == "list" && st.recorder.ptr){
-        value rec = makeRecord(*a.vm, a.library, nullptr, message, category,
+        value rec = makeRecord(*a.vmPtr, a.library, nullptr, message, category,
                                filename, lineno);
         auto* items = static_cast<std::vector<value>*>(st.recorder.ptr);
         items->push_back(rec);
@@ -223,7 +223,7 @@ static value fnShowwarning(cffi& a){
     std::string message = a.arg_str(0);
     std::string filename = a.argc() > 2 ? a.arg_str(2) : "<unknown>";
     long long lineno = a.argc() > 3 ? a.arg_int(3) : 0;
-    std::string category = categoryName(*a.vm, a.arg(1));
+    std::string category = categoryName(*a.vmPtr, a.arg(1));
     printWarning(message, category, filename, lineno);
     return a.none();
 }
@@ -235,7 +235,7 @@ static value fnFormatwarning(cffi& a){
     std::string message = a.arg_str(0);
     std::string filename = a.argc() > 2 ? a.arg_str(2) : "<unknown>";
     long long lineno = a.argc() > 3 ? a.arg_int(3) : 0;
-    std::string category = categoryName(*a.vm, a.arg(1));
+    std::string category = categoryName(*a.vmPtr, a.arg(1));
     return a.mkstr(filename + ":" + std::to_string(lineno) + ": " +
                    category + ": " + message + "\n");
 }
@@ -256,17 +256,17 @@ static value fnFilterwarnings(cffi& a){
     Filter filter;
     filter.action = a.arg_str(0);
     if (!validAction(filter.action)){
-        a.vm->raiseError("ValueError", "invalid action: '" + filter.action + "'");
+        a.vmPtr->raiseError("ValueError", "invalid action: '" + filter.action + "'");
         return a.none();
     }
     if (filter.action == "all") filter.action = "always";
     if (a.argc() > 1 && a.arg(1).type != "none") filter.message = a.arg_str(1);
     if (a.argc() > 2 && a.arg(2).type != "none")
-        filter.category = categoryName(*a.vm, a.arg(2));
+        filter.category = categoryName(*a.vmPtr, a.arg(2));
     if (a.argc() > 3 && a.arg(3).type != "none") filter.module = a.arg_str(3);
     if (a.argc() > 4) filter.lineno = a.arg_int(4);
     bool append = a.argc() > 5 ? a.arg_bool(5) : false;
-    WarnState& st = stateOf(a.vm);
+    WarnState& st = stateOf(a.vmPtr);
     if (append) st.filters.push_back(filter);
     else st.filters.insert(st.filters.begin(), filter);
     return a.none();
@@ -279,15 +279,15 @@ static value fnSimplefilter(cffi& a){
     Filter filter;
     filter.action = a.arg_str(0);
     if (!validAction(filter.action)){
-        a.vm->raiseError("ValueError", "invalid action: '" + filter.action + "'");
+        a.vmPtr->raiseError("ValueError", "invalid action: '" + filter.action + "'");
         return a.none();
     }
     if (filter.action == "all") filter.action = "always";
     if (a.argc() > 1 && a.arg(1).type != "none")
-        filter.category = categoryName(*a.vm, a.arg(1));
+        filter.category = categoryName(*a.vmPtr, a.arg(1));
     if (a.argc() > 2) filter.lineno = a.arg_int(2);
     bool append = a.argc() > 3 ? a.arg_bool(3) : false;
-    WarnState& st = stateOf(a.vm);
+    WarnState& st = stateOf(a.vmPtr);
     if (append) st.filters.push_back(filter);
     else st.filters.insert(st.filters.begin(), filter);
     return a.none();
@@ -297,7 +297,7 @@ static value fnSimplefilter(cffi& a){
 // warnings.resetwarnings
 // warnings.resetwarnings
 static value fnResetwarnings(cffi& a){
-    WarnState& st = stateOf(a.vm);
+    WarnState& st = stateOf(a.vmPtr);
     st.filters.clear();
     Filter def;
     def.action = "default";
@@ -327,11 +327,11 @@ static value fnCatchEnter(cffi& a){
     if (self.type != "native_object" || !self.ptr) return a.none();
     auto* state = static_cast<CatchState*>(static_cast<ffi_instance*>(self.ptr)->handle);
     if (!state) return a.none();
-    WarnState& st = stateOf(a.vm);
+    WarnState& st = stateOf(a.vmPtr);
     state->saved = st.filters;
     state->active = true;
     if (state->record){
-        st.recorder = a.vm->makeList({});
+        st.recorder = a.vmPtr->makeList({});
         return st.recorder;
     }
     return a.none();
@@ -345,7 +345,7 @@ static value fnCatchExit(cffi& a){
     if (self.type != "native_object" || !self.ptr) return a.mkbool(false);
     auto* state = static_cast<CatchState*>(static_cast<ffi_instance*>(self.ptr)->handle);
     if (!state) return a.mkbool(false);
-    WarnState& st = stateOf(a.vm);
+    WarnState& st = stateOf(a.vmPtr);
     st.filters = state->saved;
     st.recorder = a.none();
     state->active = false;
@@ -356,7 +356,7 @@ static value fnCatchExit(cffi& a){
 // Build a dynamic category object
 // ᠳ᠋ᠶᠨᠠᠮᠢᠭ ᠲᠥᠷᠥᠯ
 static value categoryData(cffi& a, const std::string& name){
-    value v = a.vm->makeDynamicObject(name, nullptr, nullptr, nullptr);
+    value v = a.vmPtr->makeDynamicObject(name, nullptr, nullptr, nullptr);
     if (v.type == "native_object" && v.ptr)
         static_cast<ffi_instance*>(v.ptr)->isTypeObject = true;
     return v;

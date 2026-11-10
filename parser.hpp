@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <cstdint>
 #include "lexer.hpp"
 
 namespace minipy{
@@ -86,7 +87,7 @@ struct execute_t{
 
     bool hidePropagationCaret = false;
 
-    long long callId = 0;
+    int64_t callId = 0;
 
     size_t jumpTarget = (size_t)(-1);
 

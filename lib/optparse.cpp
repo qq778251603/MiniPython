@@ -87,7 +87,7 @@ void parserError(cffi& a, ParserState* st, const std::string& message){
     std::cerr << buildUsage(st) << "\n";
     std::cerr << st->prog << ": error: " << message << "\n";
     std::cerr.flush();
-    a.vm->raiseError("SystemExit", "2");
+    a.vmPtr->raiseError("SystemExit", "2");
 }
 
 // 类型转换
@@ -201,7 +201,7 @@ value parseArgs(cffi& a, ParserState* st, const std::vector<std::string>& argv,
                     return a.none();
                 }
                 value converted = convertValue(a, st, *found, raw);
-                if (a.vm->hasError()) return a.none();
+                if (a.vmPtr->hasError()) return a.none();
                 if (found->action == "append"){
                     if (result[found->dest].type != "list"){
                         result[found->dest] = a.mklist({});
@@ -217,7 +217,7 @@ value parseArgs(cffi& a, ParserState* st, const std::vector<std::string>& argv,
                 result[found->dest] = a.mkbool(false);
             } else if (found->action == "count"){
                 value curVal = result[found->dest];
-                long long cur = curVal.type == "none" ? 0 : a.vm->toInt(curVal);
+                long long cur = curVal.type == "none" ? 0 : a.vmPtr->toInt(curVal);
                 result[found->dest] = a.mkint(cur + 1);
             }
             continue;
@@ -249,7 +249,7 @@ value parseArgs(cffi& a, ParserState* st, const std::vector<std::string>& argv,
                         return a.none();
                     }
                     value converted = convertValue(a, st, *found, raw);
-                    if (a.vm->hasError()) return a.none();
+                    if (a.vmPtr->hasError()) return a.none();
                     if (found->action == "append"){
                         if (result[found->dest].type != "list"){
                             result[found->dest] = a.mklist({});
@@ -266,7 +266,7 @@ value parseArgs(cffi& a, ParserState* st, const std::vector<std::string>& argv,
                     result[found->dest] = a.mkbool(false);
                 } else if (found->action == "count"){
                     value curVal = result[found->dest];
-                    long long cur = curVal.type == "none" ? 0 : a.vm->toInt(curVal);
+                    long long cur = curVal.type == "none" ? 0 : a.vmPtr->toInt(curVal);
                     result[found->dest] = a.mkint(cur + 1);
                 }
             }
@@ -280,7 +280,7 @@ value parseArgs(cffi& a, ParserState* st, const std::vector<std::string>& argv,
     // Create the Values instance
     // Values ᠶᠢᠨᠢᠰ ᠢ ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
     auto classIt = a.library->classes.find("Values");
-    value values = a.vm->makeNativeObject(a.library, &classIt->second, nullptr);
+    value values = a.vmPtr->makeNativeObject(a.library, &classIt->second, nullptr);
     auto* vi = static_cast<ffi_instance*>(values.ptr);
     for (auto& kv : result) vi->attributes[kv.first] = kv.second;
     valuesOut = values;
@@ -322,7 +322,7 @@ value parserAddOption(cffi& a){
         value ch = a.kwarg("choices");
         if (ch.type == "list" || ch.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(ch.ptr);
-            for (auto& item : *items) def.choices.push_back(a.vm->toString(item));
+            for (auto& item : *items) def.choices.push_back(a.vmPtr->toString(item));
         }
         def.type = "choice";
     }
@@ -338,16 +338,16 @@ value parserParseArgs(cffi& a){
         value listVal = a.arg(0);
         if (listVal.type == "list" || listVal.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(listVal.ptr);
-            for (auto& item : *items) argv.push_back(a.vm->toString(item));
+            for (auto& item : *items) argv.push_back(a.vmPtr->toString(item));
         }
     }
     value values;
     value rest = parseArgs(a, st, argv, values);
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
     std::vector<value> pair;
     pair.push_back(values);
     pair.push_back(rest);
-    return a.vm->makeTuple(pair);
+    return a.vmPtr->makeTuple(pair);
 }
 
 value parserSetDefaults(cffi& a){
@@ -409,7 +409,7 @@ value valuesCtor(cffi& a){
     if (a.argc() > 0 && a.arg(0).type == "dict"){
         auto* items = static_cast<dict_t*>(a.arg(0).ptr);
         for (auto& kv : *items){
-            inst->attributes[a.vm->toString(kv.first)] = kv.second;
+            inst->attributes[a.vmPtr->toString(kv.first)] = kv.second;
         }
     }
     return obj;

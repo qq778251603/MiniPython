@@ -122,9 +122,9 @@ std::string regexEscape(char c){
 // ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠢ ᠦᠰᠦᠭ ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠪᠣᠯᠭᠠᠨ᠎ᠠ
 bool readStringList(cffi& a, const value& source, std::vector<std::string>& out){
     std::vector<value> items;
-    a.vm->materializeIterable(source, items);
-    if (a.vm->hasError()) return false;
-    for (const auto& item : items) out.push_back(a.vm->toString(item));
+    a.vmPtr->materializeIterable(source, items);
+    if (a.vmPtr->hasError()) return false;
+    for (const auto& item : items) out.push_back(a.vmPtr->toString(item));
     return true;
 }
 

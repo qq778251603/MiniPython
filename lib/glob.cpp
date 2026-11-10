@@ -137,13 +137,13 @@ void globWalk(const fs::path& base, const std::string& prefix,
 }
 
 static value fnGlob(cffi& a){
-    std::string pattern = a.vm->toString(a.arg(0));
+    std::string pattern = a.vmPtr->toString(a.arg(0));
     bool recursive = a.has_kwarg("recursive") ? a.kwarg_bool("recursive", false) : false;
     bool includeHidden = a.has_kwarg("include_hidden")
                              ? a.kwarg_bool("include_hidden", false) : false;
     std::string rootDir;
     if (a.has_kwarg("root_dir") && a.kwarg("root_dir").type != "none")
-        rootDir = a.vm->toString(a.kwarg("root_dir"));
+        rootDir = a.vmPtr->toString(a.kwarg("root_dir"));
     std::vector<std::string> parts = splitPattern(pattern);
     std::vector<std::string> out;
     if (recursive){
@@ -167,12 +167,12 @@ static value fnGlob(cffi& a){
 }
 
 static value fnHasMagic(cffi& a){
-    std::string text = a.vm->toString(a.arg(0));
+    std::string text = a.vmPtr->toString(a.arg(0));
     return a.mkbool(hasMagicText(text));
 }
 
 static value fnEscape(cffi& a){
-    std::string text = a.vm->toString(a.arg(0));
+    std::string text = a.vmPtr->toString(a.arg(0));
     std::string out;
     for (char ch : text){
         if (ch == '*' || ch == '?' || ch == '['){

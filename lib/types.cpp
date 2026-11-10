@@ -38,9 +38,9 @@ dict_t* proxyDict(ProxyState* st){
 }
 
 value dataTypeObj(cffi& a, const char* name){
-    value v = a.vm->getBuiltinTypeObj(name);
+    value v = a.vmPtr->getBuiltinTypeObj(name);
     if (v.type == "none")
-        v = a.vm->makeDynamicObject(name, nullptr, nullptr, nullptr);
+        v = a.vmPtr->makeDynamicObject(name, nullptr, nullptr, nullptr);
     return v;
 }
 
@@ -89,7 +89,7 @@ static value fnNsRepr(cffi& a){
         for (auto& k : keys){
             if (!first) text += ", ";
             first = false;
-            text += k + "=" + pythonRepr(*a.vm, inst->attributes[k]);
+            text += k + "=" + pythonRepr(*a.vmPtr, inst->attributes[k]);
         }
     }
     text += ")";
@@ -111,15 +111,15 @@ static value fnNsEq(cffi& a){
     for (auto& kv : li->attributes){
         auto it = ri->attributes.find(kv.first);
         if (it == ri->attributes.end()) return a.mkbool(false);
-        if (!a.vm->valuesEqual(kv.second, it->second)) return a.mkbool(false);
+        if (!a.vmPtr->valuesEqual(kv.second, it->second)) return a.mkbool(false);
     }
     return a.mkbool(true);
 }
 
 static value fnNsNe(cffi& a){
     value r = fnNsEq(a);
-    if (a.vm->hasError()) return a.none();
-    return a.mkbool(!a.vm->truthy(r));
+    if (a.vmPtr->hasError()) return a.none();
+    return a.mkbool(!a.vmPtr->truthy(r));
 }
 
 // MappingProxyType 构造
@@ -127,7 +127,7 @@ static value fnNsNe(cffi& a){
 // MappingProxyType ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 static value fnProxyCtor(cffi& a){
     if (a.argc() != 1 || a.arg(0).type != "dict"){
-        a.vm->raiseError("TypeError", "mappingproxy() argument must be a mapping");
+        a.vmPtr->raiseError("TypeError", "mappingproxy() argument must be a mapping");
         return a.none();
     }
     auto* st = new ProxyState();
@@ -138,24 +138,24 @@ static value fnProxyCtor(cffi& a){
 static value fnProxyRepr(cffi& a){
     auto* st = proxyOf(a.self());
     if (!st) return a.mkstr("mappingproxy({})");
-    return a.mkstr("mappingproxy(" + pythonRepr(*a.vm, st->target) + ")");
+    return a.mkstr("mappingproxy(" + pythonRepr(*a.vmPtr, st->target) + ")");
 }
 
 static value fnProxyStr(cffi& a){
     auto* st = proxyOf(a.self());
     if (!st) return a.mkstr("{}");
-    return a.mkstr(a.vm->toString(st->target));
+    return a.mkstr(a.vmPtr->toString(st->target));
 }
 
 static value fnProxySetitem(cffi& a){
     (void)a;
-    a.vm->raiseError("TypeError", "'mappingproxy' object does not support item assignment");
+    a.vmPtr->raiseError("TypeError", "'mappingproxy' object does not support item assignment");
     return a.none();
 }
 
 static value fnProxyDelitem(cffi& a){
     (void)a;
-    a.vm->raiseError("TypeError", "'mappingproxy' object does not support item deletion");
+    a.vmPtr->raiseError("TypeError", "'mappingproxy' object does not support item deletion");
     return a.none();
 }
 
@@ -163,14 +163,14 @@ static value fnProxyGetitem(cffi& a){
     auto* st = proxyOf(a.self());
     auto* d = proxyDict(st);
     if (!d){
-        a.vm->raiseError("TypeError", "mappingproxy target is not a dict");
+        a.vmPtr->raiseError("TypeError", "mappingproxy target is not a dict");
         return a.none();
     }
     value key = a.arg(0);
     for (auto& kv : *d){
-        if (a.vm->valuesEqual(kv.first, key)) return kv.second;
+        if (a.vmPtr->valuesEqual(kv.first, key)) return kv.second;
     }
-    a.vm->raiseError("KeyError", pythonRepr(*a.vm, key));
+    a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, key));
     return a.none();
 }
 
@@ -186,7 +186,7 @@ static value fnProxyContains(cffi& a){
     if (!d) return a.mkbool(false);
     value key = a.arg(0);
     for (auto& kv : *d){
-        if (a.vm->valuesEqual(kv.first, key)) return a.mkbool(true);
+        if (a.vmPtr->valuesEqual(kv.first, key)) return a.mkbool(true);
     }
     return a.mkbool(false);
 }
@@ -198,7 +198,7 @@ static value fnProxyGet(cffi& a){
     value fallback = a.argc() > 1 ? a.arg(1) : a.none();
     if (d){
         for (auto& kv : *d){
-            if (a.vm->valuesEqual(kv.first, key)) return kv.second;
+            if (a.vmPtr->valuesEqual(kv.first, key)) return kv.second;
         }
     }
     return fallback;
@@ -211,7 +211,7 @@ static value fnProxyKeys(cffi& a){
     if (d){
         for (auto& kv : *d) out.push_back(kv.first);
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnProxyValues(cffi& a){
@@ -221,7 +221,7 @@ static value fnProxyValues(cffi& a){
     if (d){
         for (auto& kv : *d) out.push_back(kv.second);
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnProxyItems(cffi& a){
@@ -229,16 +229,16 @@ static value fnProxyItems(cffi& a){
     auto* d = proxyDict(st);
     std::vector<value> out;
     if (d){
-        for (auto& kv : *d) out.push_back(a.vm->makeTuple({kv.first, kv.second}));
+        for (auto& kv : *d) out.push_back(a.vmPtr->makeTuple({kv.first, kv.second}));
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnProxyCopy(cffi& a){
     auto* st = proxyOf(a.self());
     auto* d = proxyDict(st);
-    if (!d) return a.vm->makeDict({});
-    return a.vm->makeDict(*d);
+    if (!d) return a.vmPtr->makeDict({});
+    return a.vmPtr->makeDict(*d);
 }
 
 static value fnProxyIter(cffi& a){
@@ -251,7 +251,7 @@ static value fnProxyIter(cffi& a){
     if (d){
         for (auto& kv : *d) out.push_back(kv.first);
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 // new_class(name, bases=(), kwds=None, exec_body=None)
@@ -259,11 +259,11 @@ static value fnProxyIter(cffi& a){
 // ᠰᠢᠨ᠎ᠡ ᠬᠢᠶ᠎ᠡ ᠪᠢᠲ᠋ᠢ
 static value fnNewClass(cffi& a){
     if (a.argc() < 1 || a.arg(0).type != "str"){
-        a.vm->raiseError("TypeError", "new_class() argument 1 must be str");
+        a.vmPtr->raiseError("TypeError", "new_class() argument 1 must be str");
         return a.none();
     }
     std::string name = *static_cast<std::string*>(a.arg(0).ptr);
-    value basesVal = a.argc() > 1 ? a.arg(1) : a.vm->makeTuple({});
+    value basesVal = a.argc() > 1 ? a.arg(1) : a.vmPtr->makeTuple({});
     value execBody = a.argc() > 3 ? a.arg(3) : a.none();
     if (a.has_kwarg("exec_body")) execBody = a.kwarg("exec_body");
     if (a.has_kwarg("bases")) basesVal = a.kwarg("bases");
@@ -273,15 +273,15 @@ static value fnNewClass(cffi& a){
     klass->attributes = new std::map<std::string, value>();
 
     std::vector<value> bases;
-    a.vm->materializeIterable(basesVal, bases);
+    a.vmPtr->materializeIterable(basesVal, bases);
     if (!bases.empty() && bases[0].type == "class" && bases[0].ptr){
         klass->baseClass = static_cast<class_t*>(bases[0].ptr);
     }
 
     if (execBody.type == "function" || execBody.type == "bound_method"){
-        value ns = a.vm->makeDict({});
-        a.vm->callValue(execBody, {ns});
-        if (a.vm->hasError()) return a.none();
+        value ns = a.vmPtr->makeDict({});
+        a.vmPtr->callValue(execBody, {ns});
+        if (a.vmPtr->hasError()) return a.none();
         if (ns.type == "dict" && ns.ptr){
             auto* d = static_cast<dict_t*>(ns.ptr);
             for (auto& kv : *d){
@@ -302,7 +302,7 @@ static value fnNewClass(cffi& a){
             }
         }
     }
-    return a.vm->adoptClass(klass);
+    return a.vmPtr->adoptClass(klass);
 }
 
 // cffi types 库

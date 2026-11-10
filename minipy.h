@@ -121,7 +121,11 @@ SOFTWARE.
 // 6. 一个 vm 只在一个线程内使用, 原生回调在调用线程上同步执行。
 //    One vm per thread; native callbacks run synchronously on that thread.
 #ifdef __cplusplus
-extern "C" {
+    #ifdef SHARED_API
+        extern "C" __declspec(dllexport) {
+    #else
+        extern "C" {
+    #endif
 #endif
 
 #include <stddef.h>

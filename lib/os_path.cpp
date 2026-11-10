@@ -22,7 +22,7 @@ const char kSep =
 // path error
 // path ᠲᠠᠯᠳ᠋ᠠᠭᠤᠯᠭ᠎ᠠ
 value pathError(cffi& a, const std::string& message){
-    a.vm->raiseError("OSError", message);
+    a.vmPtr->raiseError("OSError", message);
     return a.none();
 }
 
@@ -322,16 +322,16 @@ static value fnRelpath(cffi& a){
 // fn Commonpath
 static value fnCommonpath(cffi& a){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     if (items.empty()){
-        a.vm->raiseError("ValueError", "commonpath() arg is an empty sequence");
+        a.vmPtr->raiseError("ValueError", "commonpath() arg is an empty sequence");
         return a.none();
     }
     std::vector<std::string> common =
-        splitComponents(mpNormalizePath(a.vm->toString(items[0])));
+        splitComponents(mpNormalizePath(a.vmPtr->toString(items[0])));
     for (size_t i = 1; i < items.size(); ++i){
         std::vector<std::string> tokens =
-            splitComponents(mpNormalizePath(a.vm->toString(items[i])));
+            splitComponents(mpNormalizePath(a.vmPtr->toString(items[i])));
         size_t matched = 0;
         while (matched < common.size() && matched < tokens.size() &&
                common[matched] == tokens[matched]){
@@ -464,11 +464,11 @@ static value fnNormcase(cffi& a){
 // fn Commonprefix
 static value fnCommonprefix(cffi& a){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     if (items.empty()) return a.mkstr("");
-    std::string prefix = a.vm->toString(items[0]);
+    std::string prefix = a.vmPtr->toString(items[0]);
     for (size_t i = 1; i < items.size(); ++i){
-        std::string next = a.vm->toString(items[i]);
+        std::string next = a.vmPtr->toString(items[i]);
         size_t n = 0;
         while (n < prefix.size() && n < next.size() && prefix[n] == next[n]) ++n;
         prefix.resize(n);

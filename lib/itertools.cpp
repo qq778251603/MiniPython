@@ -18,7 +18,7 @@ namespace {
 // sequence
 std::vector<minipy::value> sequence(minipy::cffi& a, size_t index){
     std::vector<minipy::value> items;
-    if (index < a.argc()) a.vm->materializeIterable(a.arg(index), items);
+    if (index < a.argc()) a.vmPtr->materializeIterable(a.arg(index), items);
     return items;
 }
 void generatePermutations(const std::vector<minipy::value>& source, size_t r,
@@ -59,7 +59,7 @@ static minipy::value fnChain(minipy::cffi& a){
     std::vector<minipy::value> result;
     for (size_t i = 0; i < a.argc(); ++i){
         std::vector<minipy::value> items;
-        a.vm->materializeIterable(a.arg(i), items);
+        a.vmPtr->materializeIterable(a.arg(i), items);
         result.insert(result.end(), items.begin(), items.end());
     }
     return a.mklist(result);
@@ -150,7 +150,7 @@ static minipy::value fnAccumulate(minipy::cffi& a){
     minipy::value total = items[0];
     result.push_back(total);
     for (size_t i = 1; i < items.size(); ++i){
-        total = a.vm->applyBinary("+", total, items[i]);
+        total = a.vmPtr->applyBinary("+", total, items[i]);
         result.push_back(total);
     }
     return a.mklist(result);
@@ -165,7 +165,7 @@ static minipy::value fnCompress(minipy::cffi& a){
     std::vector<minipy::value> result;
     size_t count = std::min(data.size(), selectors.size());
     for (size_t i = 0; i < count; ++i){
-        if (a.vm->truthy(selectors[i])) result.push_back(data[i]);
+        if (a.vmPtr->truthy(selectors[i])) result.push_back(data[i]);
     }
     return a.mklist(result);
 }
@@ -201,7 +201,7 @@ static minipy::value fnZipLongest(minipy::cffi& a){
     size_t longest = 0;
     for (size_t i = 0; i < a.argc(); ++i){
         std::vector<minipy::value> items;
-        a.vm->materializeIterable(a.arg(i), items);
+        a.vmPtr->materializeIterable(a.arg(i), items);
         longest = std::max(longest, items.size());
         groups.push_back(items);
     }
@@ -235,7 +235,7 @@ static minipy::value fnBatched(minipy::cffi& a){
     std::vector<minipy::value> items = sequence(a, 0);
     long long size = a.arg_int(1);
     if (size <= 0){
-        a.vm->raiseError("ValueError", "batch size must be at least one");
+        a.vmPtr->raiseError("ValueError", "batch size must be at least one");
         return a.none();
     }
     std::vector<minipy::value> result;
@@ -256,8 +256,8 @@ static minipy::value fnStarmap(minipy::cffi& a){
     std::vector<minipy::value> result;
     for (auto& item : items){
         std::vector<minipy::value> callArgs;
-        a.vm->materializeIterable(item, callArgs);
-        result.push_back(a.vm->callValue(function, callArgs));
+        a.vmPtr->materializeIterable(item, callArgs);
+        result.push_back(a.vmPtr->callValue(function, callArgs));
     }
     return a.mklist(result);
 }
@@ -271,8 +271,8 @@ static minipy::value fnFilterfalse(minipy::cffi& a){
     std::vector<minipy::value> result;
     for (auto& item : items){
         bool hit = (predicate.type == "none")
-                       ? a.vm->truthy(item)
-                       : a.vm->truthy(a.vm->callValue(predicate, {item}));
+                       ? a.vmPtr->truthy(item)
+                       : a.vmPtr->truthy(a.vmPtr->callValue(predicate, {item}));
         if (!hit) result.push_back(item);
     }
     return a.mklist(result);
@@ -287,8 +287,8 @@ static minipy::value fnTakewhile(minipy::cffi& a){
     std::vector<minipy::value> result;
     for (auto& item : items){
         bool hit = (predicate.type == "none")
-                       ? a.vm->truthy(item)
-                       : a.vm->truthy(a.vm->callValue(predicate, {item}));
+                       ? a.vmPtr->truthy(item)
+                       : a.vmPtr->truthy(a.vmPtr->callValue(predicate, {item}));
         if (!hit) break;
         result.push_back(item);
     }
@@ -304,8 +304,8 @@ static minipy::value fnDropwhile(minipy::cffi& a){
     size_t index = 0;
     while (index < items.size()){
         bool hit = (predicate.type == "none")
-                       ? a.vm->truthy(items[index])
-                       : a.vm->truthy(a.vm->callValue(predicate, {items[index]}));
+                       ? a.vmPtr->truthy(items[index])
+                       : a.vmPtr->truthy(a.vmPtr->callValue(predicate, {items[index]}));
         if (!hit) break;
         index++;
     }
@@ -321,12 +321,12 @@ static minipy::value fnTee(minipy::cffi& a){
     std::vector<minipy::value> items = sequence(a, 0);
     long long count = (a.argc() > 1) ? a.arg_int(1) : 2;
     if (count < 0){
-        a.vm->raiseError("ValueError", "n must be >= 0");
+        a.vmPtr->raiseError("ValueError", "n must be >= 0");
         return a.none();
     }
     std::vector<minipy::value> copies;
     for (long long i = 0; i < count; ++i) copies.push_back(a.mklist(items));
-    return a.vm->makeTuple(copies);
+    return a.vmPtr->makeTuple(copies);
 }
 
 // fn Groupby
@@ -339,15 +339,15 @@ static minipy::value fnGroupby(minipy::cffi& a){
     std::vector<minipy::value> keys;
     for (auto& item : items){
         keys.push_back((keyFunction.type == "none") ? item
-                                                    : a.vm->callValue(keyFunction, {item}));
+                                                    : a.vmPtr->callValue(keyFunction, {item}));
     }
     std::vector<minipy::value> result;
     size_t index = 0;
     while (index < items.size()){
         size_t end = index + 1;
-        while (end < items.size() && a.vm->valuesEqual(keys[end], keys[index])) end++;
+        while (end < items.size() && a.vmPtr->valuesEqual(keys[end], keys[index])) end++;
         std::vector<minipy::value> group(items.begin() + index, items.begin() + end);
-        result.push_back(a.vm->makeTuple({keys[index], a.mklist(group)}));
+        result.push_back(a.vmPtr->makeTuple({keys[index], a.mklist(group)}));
         index = end;
     }
     return a.mklist(result);

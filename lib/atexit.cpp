@@ -45,14 +45,14 @@ value callExitCallable(vm& v, const value& fn, const std::vector<value>& args,
 // atexit.register
 static value fnRegister(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "register expected at least 1 argument, got 0");
+        a.vmPtr->raiseError("TypeError", "register expected at least 1 argument, got 0");
         return a.none();
     }
     value fn = a.arg(0);
     if (!(fn.type == "function" || fn.type == "native_object" ||
           fn.type == "native_method" || fn.type == "bound_function" ||
           fn.type == "object" || fn.type == "class")){
-        a.vm->raiseError("TypeError", "'" + a.vm->pythonTypeName(fn) +
+        a.vmPtr->raiseError("TypeError", "'" + a.vmPtr->pythonTypeName(fn) +
                         "' object is not callable");
         return a.none();
     }
@@ -60,7 +60,7 @@ static value fnRegister(cffi& a){
     entry.func = fn;
     for (size_t i = 1; i < a.argc(); ++i) entry.args.push_back(a.arg(i));
     entry.kwargs = a.kwargv;
-    registry()[a.vm].push_back(entry);
+    registry()[a.vmPtr].push_back(entry);
     return fn;
 }
 
@@ -69,7 +69,7 @@ static value fnRegister(cffi& a){
 // atexit.unregister
 static value fnUnregister(cffi& a){
     value fn = a.arg(0);
-    auto it = registry().find(a.vm);
+    auto it = registry().find(a.vmPtr);
     if (it != registry().end()){
         auto& entries = it->second;
         for (size_t i = entries.size(); i-- > 0;){
@@ -86,7 +86,7 @@ static value fnUnregister(cffi& a){
 // atexit._clear
 // atexit._clear
 static value fnClear(cffi& a){
-    registry().erase(a.vm);
+    registry().erase(a.vmPtr);
     return a.none();
 }
 
@@ -94,15 +94,15 @@ static value fnClear(cffi& a){
 // atexit._run_exitfuncs (LIFO order)
 // atexit._run_exitfuncs
 static value fnRunExitfuncs(cffi& a){
-    auto it = registry().find(a.vm);
+    auto it = registry().find(a.vmPtr);
     if (it == registry().end()) return a.none();
     std::vector<ExitEntry> entries;
     entries.swap(it->second);
     registry().erase(it);
     for (size_t i = entries.size(); i-- > 0;){
-        value ignored = callExitCallable(*a.vm, entries[i].func,
+        value ignored = callExitCallable(*a.vmPtr, entries[i].func,
                                           entries[i].args, entries[i].kwargs);
-        if (a.vm->hasError()) a.vm->clearErr();
+        if (a.vmPtr->hasError()) a.vmPtr->clearErr();
     }
     return a.none();
 }
@@ -111,7 +111,7 @@ static value fnRunExitfuncs(cffi& a){
 // data ncallbacks
 // data ncallbacks
 static value dataNcallbacks(cffi& a){
-    auto it = registry().find(a.vm);
+    auto it = registry().find(a.vmPtr);
     if (it == registry().end()) return a.mkint(0);
     return a.mkint(static_cast<long long>(it->second.size()));
 }

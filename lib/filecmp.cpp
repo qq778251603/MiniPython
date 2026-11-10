@@ -118,7 +118,7 @@ std::set<std::string> readStringSet(cffi& a, const value& v){
     std::set<std::string> out;
     if (v.type == "list" || v.type == "tuple"){
         for (auto& item : *static_cast<std::vector<value>*>(v.ptr))
-            out.insert(a.vm->toString(item));
+            out.insert(a.vmPtr->toString(item));
     }
     return out;
 }
@@ -151,7 +151,7 @@ value buildDirCmp(cffi& a, const std::string& left, const std::string& right,
         inst->attributes["funny_files"] = makeStringList(a, st->funnyFiles);
         std::vector<std::pair<value, value>> subs;
         for (auto& kv : st->subdirs) subs.push_back({a.mkstr(kv.first), kv.second});
-        value dict = a.vm->makeDict(subs);
+        value dict = a.vmPtr->makeDict(subs);
         inst->attributes["subdirs"] = dict;
         inst->attributes["ignore"] = makeStringList(a, std::vector<std::string>(st->ignore.begin(), st->ignore.end()));
         inst->attributes["hide"] = makeStringList(a, std::vector<std::string>(st->hide.begin(), st->hide.end()));
@@ -209,8 +209,8 @@ std::string pathName(const std::string& text){
 }
 
 static value fnDircmpCtor(cffi& a){
-    std::string left = a.vm->toString(a.arg(0));
-    std::string right = a.vm->toString(a.arg(1));
+    std::string left = a.vmPtr->toString(a.arg(0));
+    std::string right = a.vmPtr->toString(a.arg(1));
     std::set<std::string> ignore = {"RCS", "CVS", ".svn", ".git", "__pycache__"};
     std::set<std::string> hide;
     hide.insert(pathName(left));
@@ -304,21 +304,21 @@ static value fnDircmpReportFull(cffi& a){
 
 // ---------- 模块函数 ----------
 static value fnCmp(cffi& a){
-    std::string f1 = a.vm->toString(a.arg(0));
-    std::string f2 = a.vm->toString(a.arg(1));
+    std::string f1 = a.vmPtr->toString(a.arg(0));
+    std::string f2 = a.vmPtr->toString(a.arg(1));
     bool shallow = a.has_kwarg("shallow") ? a.kwarg_bool("shallow", true) : true;
     return a.mkbool(cmpFiles(f1, f2, shallow));
 }
 
 static value fnCmpfiles(cffi& a){
-    std::string dir1 = a.vm->toString(a.arg(0));
-    std::string dir2 = a.vm->toString(a.arg(1));
+    std::string dir1 = a.vmPtr->toString(a.arg(0));
+    std::string dir2 = a.vmPtr->toString(a.arg(1));
     value common = a.arg(2);
     bool shallow = a.has_kwarg("shallow") ? a.kwarg_bool("shallow", true) : true;
     std::vector<value> match, mismatch, errors;
     if (common.type == "list" || common.type == "tuple"){
         for (auto& item : *static_cast<std::vector<value>*>(common.ptr)){
-            std::string name = a.vm->toString(item);
+            std::string name = a.vmPtr->toString(item);
             fs::path p1 = fsPathFromUtf8(dir1) / fsPathFromUtf8(name);
             fs::path p2 = fsPathFromUtf8(dir2) / fsPathFromUtf8(name);
             std::error_code ec;
@@ -334,7 +334,7 @@ static value fnCmpfiles(cffi& a){
     result.push_back(a.mklist(match));
     result.push_back(a.mklist(mismatch));
     result.push_back(a.mklist(errors));
-    return a.vm->makeTuple(result);
+    return a.vmPtr->makeTuple(result);
 }
 
 static value fnClearCache(cffi& a){

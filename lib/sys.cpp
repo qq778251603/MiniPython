@@ -14,7 +14,7 @@ using namespace minipy;
 // data Version
 // data version
 // data Version
-static value dataVersion(cffi& a){ return a.mkstr("1.0.4 MiniPython (ᠮᠢᠨᠢ ᠫᠢᠲ᠋ᠢᠣᠨ Portable Python<3.14.0>)"); }
+static value dataVersion(cffi& a){ return a.mkstr("1.0.5 MiniPython (ᠮᠢᠨᠢ ᠫᠢᠲ᠋ᠢᠣᠨ Portable Python<3.14.0>)"); }
 
 // data Version Info
 // data version info
@@ -95,7 +95,7 @@ static value fnGetrecursionlimit(cffi& a){
 static value fnSetrecursionlimit(cffi& a){
     long long value = a.arg_int(0);
     if (value <= 0){
-        a.vm->raiseError("ValueError", "recursion limit must be positive");
+        a.vmPtr->raiseError("ValueError", "recursion limit must be positive");
         return a.none();
     }
     recursionLimit = value;
@@ -115,8 +115,8 @@ static value fnGetdefaultencoding(cffi& a){
 static value fnIntern(cffi& a){
     value value = a.arg(0);
     if (value.type != "str"){
-        a.vm->raiseError("TypeError", "intern() argument must be str, not " +
-                                          a.vm->pythonTypeName(value));
+        a.vmPtr->raiseError("TypeError", "intern() argument must be str, not " +
+                                          a.vmPtr->pythonTypeName(value));
         return a.none();
     }
     return value;
@@ -137,7 +137,7 @@ static value fnExit(cffi& a){
 static value fnGetsizeof(cffi& a){
     value value = a.arg(0);
     if (value.type == "str"){
-        return a.mkint(49 + static_cast<long long>(a.vm->toString(value).size()));
+        return a.mkint(49 + static_cast<long long>(a.vmPtr->toString(value).size()));
     }
     if (value.type == "list"){
         return a.mkint(56 + 8 * static_cast<long long>(

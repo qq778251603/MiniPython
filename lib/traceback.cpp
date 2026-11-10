@@ -12,7 +12,7 @@ namespace {
 // Get the display type name of an exception
 // ᠬᠠᠯᠳᠠᠭᠤᠯᠭ᠎ᠠ ᠶᠢᠨ ᠲᠥᠷᠥᠯ ᠨᠡᠷ᠎ᠡ
 std::string excTypeName(cffi& a, const value& exc){
-    if (exc.type == "str") return a.vm->toString(exc);
+    if (exc.type == "str") return a.vmPtr->toString(exc);
     if (exc.type == "exception" && exc.ptr){
         auto* payload = static_cast<ExceptionPayload*>(exc.ptr);
         return payload->type;
@@ -45,7 +45,7 @@ std::string excMessage(cffi& a, const value& exc){
         }
     }
     if (exc.type == "none") return "";
-    return a.vm->toString(exc);
+    return a.vmPtr->toString(exc);
 }
 
 // 组装 "Type: msg\n" 形式的异常行列表
@@ -116,8 +116,8 @@ value fnPrintException(cffi& a){
 // fn format_exc
 // fn format_exc
 value fnFormatExc(cffi& a){
-    if (a.vm->hasError()){
-        return a.mkstr(a.vm->exceptionType() + ": " + a.vm->getLastErr() + "\n");
+    if (a.vmPtr->hasError()){
+        return a.mkstr(a.vmPtr->exceptionType() + ": " + a.vmPtr->getLastErr() + "\n");
     }
     return a.mkstr("NoneType: None\n");
 }
@@ -126,8 +126,8 @@ value fnFormatExc(cffi& a){
 // fn print_exc
 // fn print_exc
 value fnPrintExc(cffi& a){
-    if (a.vm->hasError()){
-        std::cerr << a.vm->exceptionType() << ": " << a.vm->getLastErr() << "\n";
+    if (a.vmPtr->hasError()){
+        std::cerr << a.vmPtr->exceptionType() << ": " << a.vmPtr->getLastErr() << "\n";
     } else {
         std::cerr << "NoneType: None\n";
     }
@@ -181,8 +181,8 @@ value fnPrintStack(cffi& a){
 // fn print_last
 // fn print_last
 value fnPrintLast(cffi& a){
-    if (a.vm->hasError()){
-        std::cerr << a.vm->exceptionType() << ": " << a.vm->getLastErr() << "\n";
+    if (a.vmPtr->hasError()){
+        std::cerr << a.vmPtr->exceptionType() << ": " << a.vmPtr->getLastErr() << "\n";
         std::cerr.flush();
     }
     return a.none();
@@ -206,9 +206,9 @@ value frameSummaryCtor(cffi& a){
 // FrameSummary __repr__
 // FrameSummary __repr__
 value frameSummaryRepr(cffi& a){
-    std::string out = "<FrameSummary file " + a.vm->toString(a.attr("filename")) +
-                      ", line " + a.vm->toString(a.attr("lineno")) +
-                      " in " + a.vm->toString(a.attr("name")) + ">";
+    std::string out = "<FrameSummary file " + a.vmPtr->toString(a.attr("filename")) +
+                      ", line " + a.vmPtr->toString(a.attr("lineno")) +
+                      " in " + a.vmPtr->toString(a.attr("name")) + ">";
     return a.mkstr(out);
 }
 
@@ -232,8 +232,8 @@ value teCtor(cffi& a){
 // TracebackException.format
 // TracebackException.format
 value teFormat(cffi& a){
-    std::string type = a.vm->toString(a.attr("exc_type"));
-    std::string msg = a.vm->toString(a.attr("_msg"));
+    std::string type = a.vmPtr->toString(a.attr("exc_type"));
+    std::string msg = a.vmPtr->toString(a.attr("_msg"));
     return listOfLines(a, exceptionLines(a, type, msg));
 }
 
@@ -248,7 +248,7 @@ value teFormatExceptionOnly(cffi& a){
 // TracebackException __str__
 // TracebackException __str__
 value teStr(cffi& a){
-    std::string msg = a.vm->toString(a.attr("_msg"));
+    std::string msg = a.vmPtr->toString(a.attr("_msg"));
     return a.mkstr(msg);
 }
 

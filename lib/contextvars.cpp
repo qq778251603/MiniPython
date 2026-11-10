@@ -74,9 +74,9 @@ const ffi_class* findClass(const ffilib* lib, const std::string& name){
 // Get the Token.MISSING sentinel
 // Token.MISSING ᠲᠡᠮᠳᠡᠭ ᠬᠠᠯᠠᠬᠤ
 value sentinelMissing(cffi& a){
-    value& slot = missingSentinels()[a.vm];
+    value& slot = missingSentinels()[a.vmPtr];
     if (slot.type != "native_object" || !slot.ptr)
-        slot = a.vm->makeNativeObject(a.library, findClass(a.library, "_TokenMissing"), nullptr);
+        slot = a.vmPtr->makeNativeObject(a.library, findClass(a.library, "_TokenMissing"), nullptr);
     return slot;
 }
 
@@ -115,7 +115,7 @@ std::shared_ptr<ContextData> contextData(const value& v){
 // Build a Token object
 // Token ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
 value makeToken(cffi& a, TokenState* state, const value& var){
-    value obj = a.vm->makeNativeObject(a.library, findClass(a.library, "Token"), state);
+    value obj = a.vmPtr->makeNativeObject(a.library, findClass(a.library, "Token"), state);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         inst->attributes["var"] = var;
@@ -146,12 +146,12 @@ static value fnVarCtor(cffi& a){
 static value fnVarGet(cffi& a){
     value var = a.self();
     VarState* state = varState(var);
-    auto ctx = currentContext(a.vm);
+    auto ctx = currentContext(a.vmPtr);
     auto it = ctx->vars.find(state);
     if (it != ctx->vars.end()) return it->second;
     if (a.argc() > 0) return a.arg(0);
     if (state && state->hasDefault) return state->defaultValue;
-    a.vm->raiseError("LookupError", state ? state->name : "<ContextVar>");
+    a.vmPtr->raiseError("LookupError", state ? state->name : "<ContextVar>");
     return a.none();
 }
 
@@ -161,7 +161,7 @@ static value fnVarGet(cffi& a){
 static value fnVarSet(cffi& a){
     value var = a.self();
     VarState* state = varState(var);
-    auto ctx = currentContext(a.vm);
+    auto ctx = currentContext(a.vmPtr);
     auto* token = new TokenState();
     token->var = state;
     token->context = ctx;
@@ -180,18 +180,18 @@ static value fnVarSet(cffi& a){
 static value fnVarReset(cffi& a){
     value tokenValue = a.arg(0);
     if (tokenValue.type != "native_object" || !tokenValue.ptr){
-        a.vm->raiseError("TypeError", "expected a Token");
+        a.vmPtr->raiseError("TypeError", "expected a Token");
         return a.none();
     }
     auto* token = static_cast<TokenState*>(static_cast<ffi_instance*>(tokenValue.ptr)->handle);
     if (!token) return a.none();
     if (token->used){
-        a.vm->raiseError("RuntimeError", "Token has already been used once");
+        a.vmPtr->raiseError("RuntimeError", "Token has already been used once");
         return a.none();
     }
-    auto ctx = currentContext(a.vm);
+    auto ctx = currentContext(a.vmPtr);
     if (token->context && ctx != token->context){
-        a.vm->raiseError("ValueError",
+        a.vmPtr->raiseError("ValueError",
                          "Token was created by a different Context");
         return a.none();
     }
@@ -220,7 +220,7 @@ static value fnContextGetitem(cffi& a){
         auto it = ctx->vars.find(var);
         if (it != ctx->vars.end()) return it->second;
     }
-    a.vm->raiseError("LookupError", var ? var->name : "<ContextVar>");
+    a.vmPtr->raiseError("LookupError", var ? var->name : "<ContextVar>");
     return a.none();
 }
 
@@ -261,7 +261,7 @@ static value fnContextCopy(cffi& a){
     auto ctx = contextData(a.self());
     auto* fresh = new std::shared_ptr<ContextData>(std::make_shared<ContextData>());
     if (ctx) (*fresh)->vars = ctx->vars;
-    value obj = a.vm->makeNativeObject(a.library, findClass(a.library, "Context"), fresh);
+    value obj = a.vmPtr->makeNativeObject(a.library, findClass(a.library, "Context"), fresh);
     return obj;
 }
 
@@ -274,10 +274,10 @@ static value fnContextRun(cffi& a){
     std::vector<value> args;
     for (size_t i = 1; i < a.argc(); ++i) args.push_back(a.arg(i));
     auto& table = currentContexts();
-    auto old = table[a.vm];
-    table[a.vm] = ctx ? ctx : std::make_shared<ContextData>();
-    value result = a.vm->callValue(func, args);
-    table[a.vm] = old ? old : std::make_shared<ContextData>();
+    auto old = table[a.vmPtr];
+    table[a.vmPtr] = ctx ? ctx : std::make_shared<ContextData>();
+    value result = a.vmPtr->callValue(func, args);
+    table[a.vmPtr] = old ? old : std::make_shared<ContextData>();
     return result;
 }
 
@@ -285,10 +285,10 @@ static value fnContextRun(cffi& a){
 // copy_context
 // copy_context
 static value fnCopyContext(cffi& a){
-    auto ctx = currentContext(a.vm);
+    auto ctx = currentContext(a.vmPtr);
     auto* fresh = new std::shared_ptr<ContextData>(std::make_shared<ContextData>());
     if (ctx) (*fresh)->vars = ctx->vars;
-    return a.vm->makeNativeObject(a.library, findClass(a.library, "Context"), fresh);
+    return a.vmPtr->makeNativeObject(a.library, findClass(a.library, "Context"), fresh);
 }
 
 }

@@ -151,7 +151,7 @@ void parserError(cffi& a, ArgParserState* st, const std::string& message){
     std::cerr << buildUsage(st) << "\n";
     std::cerr << st->prog << ": error: " << message << "\n";
     std::cerr.flush();
-    a.vm->raiseError("SystemExit", "2");
+    a.vmPtr->raiseError("SystemExit", "2");
 }
 
 // 类型转换
@@ -188,7 +188,7 @@ value convertArg(cffi& a, ArgParserState* st, const ArgDef& def, const std::stri
 // choices ᠢ ᠰᠢᠯᠭᠠᠬᠤ
 bool checkChoices(cffi& a, ArgParserState* st, const ArgDef& def, const value& v){
     if (def.choices.empty()) return true;
-    std::string text = a.vm->toString(v);
+    std::string text = a.vmPtr->toString(v);
     for (auto& c : def.choices) if (c == text) return true;
     std::string list;
     for (size_t i = 0; i < def.choices.size(); ++i){
@@ -227,7 +227,7 @@ void applyAction(cffi& a, ArgParserState* st, const ArgDef& def,
         record(a.mkbool(false));
     } else if (def.action == "count"){
         value cur = result.count(def.dest) ? result[def.dest] : a.none();
-        long long n = cur.type == "none" || cur.type == "" ? 0 : a.vm->toInt(cur);
+        long long n = cur.type == "none" || cur.type == "" ? 0 : a.vmPtr->toInt(cur);
         record(a.mkint(n + 1));
     } else if (def.action == "store_const"){
         record(def.hasConst ? def.constValue : a.none());
@@ -339,7 +339,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
                 std::cout << buildUsage(st) << "\n";
                 if (!st->description.empty()) std::cout << "\n" << st->description << "\n";
                 std::cout.flush();
-                a.vm->raiseError("SystemExit", "0");
+                a.vmPtr->raiseError("SystemExit", "0");
                 hadError = true; return a.none();
             }
             bool takes = def.action == "store" || def.action == "append";
@@ -389,7 +389,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
             std::vector<value> vals;
             for (auto& raw : raws){
                 value cv = convertArg(a, st, def, raw);
-                if (a.vm->hasError()){ hadError = true; return a.none(); }
+                if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                 if (!checkChoices(a, st, def, cv)){ hadError = true; return a.none(); }
                 vals.push_back(cv);
             }
@@ -424,7 +424,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
                 if (def.action == "help"){
                     std::cout << buildUsage(st) << "\n";
                     std::cout.flush();
-                    a.vm->raiseError("SystemExit", "0");
+                    a.vmPtr->raiseError("SystemExit", "0");
                     hadError = true; return a.none();
                 }
                 bool takes = def.action == "store" || def.action == "append";
@@ -459,7 +459,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
                 std::vector<value> vals;
                 for (auto& raw : raws){
                     value cv = convertArg(a, st, def, raw);
-                    if (a.vm->hasError()){ hadError = true; return a.none(); }
+                    if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                     if (!checkChoices(a, st, def, cv)){ hadError = true; return a.none(); }
                     vals.push_back(cv);
                 }
@@ -499,13 +499,13 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
                 continue;
             }
             value cv = convertArg(a, st, def, positionalTokens[pi++]);
-            if (a.vm->hasError()){ hadError = true; return a.none(); }
+            if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
             if (!checkChoices(a, st, def, cv)){ hadError = true; return a.none(); }
             result[def.dest] = cv;
         } else if (def.nargs == "?"){
             if (remaining > minLater()){
                 value cv = convertArg(a, st, def, positionalTokens[pi++]);
-                if (a.vm->hasError()){ hadError = true; return a.none(); }
+                if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                 result[def.dest] = cv;
             }
         } else if (def.nargs == "*"){
@@ -513,7 +513,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
             std::vector<value> vals;
             for (size_t t = 0; t < take; ++t){
                 value cv = convertArg(a, st, def, positionalTokens[pi++]);
-                if (a.vm->hasError()){ hadError = true; return a.none(); }
+                if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                 vals.push_back(cv);
             }
             result[def.dest] = a.mklist(vals);
@@ -526,7 +526,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
             std::vector<value> vals;
             for (size_t t = 0; t < take; ++t){
                 value cv = convertArg(a, st, def, positionalTokens[pi++]);
-                if (a.vm->hasError()){ hadError = true; return a.none(); }
+                if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                 vals.push_back(cv);
             }
             result[def.dest] = a.mklist(vals);
@@ -539,7 +539,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
             std::vector<value> vals;
             for (int t = 0; t < n; ++t){
                 value cv = convertArg(a, st, def, positionalTokens[pi++]);
-                if (a.vm->hasError()){ hadError = true; return a.none(); }
+                if (a.vmPtr->hasError()){ hadError = true; return a.none(); }
                 vals.push_back(cv);
             }
             result[def.dest] = a.mklist(vals);
@@ -580,7 +580,7 @@ value doParse(cffi& a, ArgParserState* st, const std::vector<std::string>& argv,
     // Build the Namespace
     // Namespace ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
     auto classIt = a.library->classes.find("Namespace");
-    value ns = a.vm->makeNativeObject(a.library, &classIt->second, nullptr);
+    value ns = a.vmPtr->makeNativeObject(a.library, &classIt->second, nullptr);
     auto* ni = static_cast<ffi_instance*>(ns.ptr);
     std::vector<value> orderVals;
     for (auto& name : order){
@@ -629,8 +629,8 @@ value parserAddArgument(cffi& a){
     if (a.has_kwarg("action")) def.action = a.kwarg_str("action", "store");
     if (a.has_kwarg("nargs")){
         value nv = a.kwarg("nargs");
-        if (nv.type == "int") def.nargs = std::to_string(a.vm->toInt(nv));
-        else def.nargs = a.vm->toString(nv);
+        if (nv.type == "int") def.nargs = std::to_string(a.vmPtr->toInt(nv));
+        else def.nargs = a.vmPtr->toString(nv);
     }
     if (a.has_kwarg("type")){
         value tv = a.kwarg("type");
@@ -641,7 +641,7 @@ value parserAddArgument(cffi& a){
             def.typeName = ti->typeName.empty()
                 ? (ti->klass ? ti->klass->name : "str") : ti->typeName;
         } else {
-            def.typeName = a.vm->toString(tv);
+            def.typeName = a.vmPtr->toString(tv);
         }
         if (def.typeName != "int" && def.typeName != "float") def.typeName = "str";
     }
@@ -661,7 +661,7 @@ value parserAddArgument(cffi& a){
         value ch = a.kwarg("choices");
         if (ch.type == "list" || ch.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(ch.ptr);
-            for (auto& item : *items) def.choices.push_back(a.vm->toString(item));
+            for (auto& item : *items) def.choices.push_back(a.vmPtr->toString(item));
         }
     }
     if (!positional && def.dest.empty()) def.dest = deriveDest(def);
@@ -678,13 +678,13 @@ value parserParseArgs(cffi& a){
         value listVal = a.arg(0);
         if (listVal.type == "list" || listVal.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(listVal.ptr);
-            for (auto& item : *items) argv.push_back(a.vm->toString(item));
+            for (auto& item : *items) argv.push_back(a.vmPtr->toString(item));
         }
     }
     value ns;
     bool hadError = false;
     doParse(a, st, argv, ns, hadError);
-    if (hadError || a.vm->hasError()) return a.none();
+    if (hadError || a.vmPtr->hasError()) return a.none();
     return ns;
 }
 
@@ -695,15 +695,15 @@ value parserParseKnownArgs(cffi& a){
         value listVal = a.arg(0);
         if (listVal.type == "list" || listVal.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(listVal.ptr);
-            for (auto& item : *items) argv.push_back(a.vm->toString(item));
+            for (auto& item : *items) argv.push_back(a.vmPtr->toString(item));
         }
     }
     value ns;
     bool hadError = false;
     value leftover = doParse(a, st, argv, ns, hadError, true);
-    if (hadError || a.vm->hasError()) return a.none();
+    if (hadError || a.vmPtr->hasError()) return a.none();
     std::vector<value> pair{ns, leftover};
-    return a.vm->makeTuple(pair);
+    return a.vmPtr->makeTuple(pair);
 }
 
 value parserSetDefaults(cffi& a){
@@ -761,14 +761,14 @@ value namespaceRepr(cffi& a){
     value orderVal = a.attr("_order");
     if (orderVal.type == "list" && orderVal.ptr){
         auto* items = static_cast<std::vector<value>*>(orderVal.ptr);
-        for (auto& item : *items) order.push_back(a.vm->toString(item));
+        for (auto& item : *items) order.push_back(a.vmPtr->toString(item));
     }
     std::string out = "Namespace(";
     bool first = true;
     for (auto& name : order){
         if (!first) out += ", ";
         first = false;
-        out += name + "=" + pythonRepr(*a.vm, a.attr(name));
+        out += name + "=" + pythonRepr(*a.vmPtr, a.attr(name));
     }
     out += ")";
     return a.mkstr(out);

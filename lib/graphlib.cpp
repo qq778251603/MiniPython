@@ -42,7 +42,7 @@ GraphState* stateOf(cffi& a){
 // ᠲᠥᠪ ᠦᠨ ᠳᠤᠭ᠎ᠠᠷ ᠢ ᠬᠠᠯᠠᠬᠤ
 long long findNode(cffi& a, GraphState& state, const value& node){
     for (size_t i = 0; i < state.nodes.size(); ++i){
-        if (a.vm->valuesEqual(state.nodes[i].node, node)) return static_cast<long long>(i);
+        if (a.vmPtr->valuesEqual(state.nodes[i].node, node)) return static_cast<long long>(i);
     }
     return -1;
 }
@@ -77,7 +77,7 @@ static value fnSorterConstructor(cffi& a){
         for (auto& item : *items){
             long long index = ensureNode(a, *state, item.first);
             std::vector<value> preds;
-            a.vm->materializeIterable(item.second, preds);
+            a.vmPtr->materializeIterable(item.second, preds);
             for (auto& pred : preds){
                 long long predIndex = ensureNode(a, *state, pred);
                 state->nodes[static_cast<size_t>(predIndex)].done = false;
@@ -95,11 +95,11 @@ static value fnSorterAdd(cffi& a){
     GraphState* state = stateOf(a);
     if (!state) return a.none();
     if (state->prepared){
-        a.vm->raiseError("ValueError", "cannot add nodes after prepare() was called");
+        a.vmPtr->raiseError("ValueError", "cannot add nodes after prepare() was called");
         return a.none();
     }
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "add() missing required argument: 'node'");
+        a.vmPtr->raiseError("TypeError", "add() missing required argument: 'node'");
         return a.none();
     }
     value node = a.arg(0);
@@ -145,7 +145,7 @@ static value fnSorterPrepare(cffi& a){
     };
     for (size_t i = 0; i < state->nodes.size(); ++i) visit(visit, i);
     if (hasCycle){
-        a.vm->raiseError("CycleError", "nodes are in a cycle");
+        a.vmPtr->raiseError("CycleError", "nodes are in a cycle");
         return a.none();
     }
     return a.none();
@@ -158,7 +158,7 @@ static value fnSorterGetReady(cffi& a){
     GraphState* state = stateOf(a);
     if (!state) return a.none();
     if (!state->prepared){
-        a.vm->raiseError("ValueError", "prepare() must be called before get_ready()");
+        a.vmPtr->raiseError("ValueError", "prepare() must be called before get_ready()");
         return a.none();
     }
     std::vector<value> ready;
@@ -188,14 +188,14 @@ static value fnSorterDone(cffi& a){
     GraphState* state = stateOf(a);
     if (!state) return a.none();
     if (!state->prepared){
-        a.vm->raiseError("ValueError", "prepare() must be called before done()");
+        a.vmPtr->raiseError("ValueError", "prepare() must be called before done()");
         return a.none();
     }
     for (size_t i = 0; i < a.argc(); ++i){
         value node = a.arg(i);
         long long index = findNode(a, *state, node);
         if (index < 0){
-            a.vm->raiseError("ValueError", "node " + a.vm->toString(node) +
+            a.vmPtr->raiseError("ValueError", "node " + a.vmPtr->toString(node) +
                                            " was not passed to add()");
             return a.none();
         }
@@ -211,7 +211,7 @@ static value fnSorterIsActive(cffi& a){
     GraphState* state = stateOf(a);
     if (!state) return a.mkbool(false);
     if (!state->prepared){
-        a.vm->raiseError("ValueError", "prepare() must be called before is_active()");
+        a.vmPtr->raiseError("ValueError", "prepare() must be called before is_active()");
         return a.none();
     }
     for (auto& node : state->nodes){
@@ -227,11 +227,11 @@ static value fnSorterStaticOrder(cffi& a){
     GraphState* state = stateOf(a);
     if (!state) return a.none();
     if (state->prepared){
-        a.vm->raiseError("ValueError", "cannot call static_order() after prepare()");
+        a.vmPtr->raiseError("ValueError", "cannot call static_order() after prepare()");
         return a.none();
     }
     value prepareResult = fnSorterPrepare(a);
-    if (a.vm->hasError()) return prepareResult;
+    if (a.vmPtr->hasError()) return prepareResult;
     std::vector<value> order;
     while (true){
         std::vector<value> ready;

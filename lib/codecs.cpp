@@ -300,19 +300,19 @@ static bool checkEncodeInput(cffi& a, const value& obj, const std::string& enc){
         if (obj.type == "str") return true;
         std::string codecName =
             enc == "utf-8" ? "utf_8_encode()" : (enc == "ascii" ? "ascii_encode()" : "latin_1_encode()");
-        a.vm->raiseError("TypeError", codecName + " argument 1 must be str, not " + tname);
+        a.vmPtr->raiseError("TypeError", codecName + " argument 1 must be str, not " + tname);
         return false;
     }
     if (enc == "rot13"){
         if (obj.type == "str") return true;
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "descriptor 'translate' for 'str' objects doesn't apply to a '" +
                              tname + "' object");
         return false;
     }
     if (enc == "hex" || enc == "base64"){
         if (isBytesLike(obj)) return true;
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "a bytes-like object is required, not '" + tname + "'");
         return false;
     }
@@ -326,13 +326,13 @@ static bool checkDecodeInput(cffi& a, const value& obj, const std::string& enc){
     std::string tname = typeNameOf(obj);
     if (enc == "utf-8" || enc == "ascii" || enc == "latin-1"){
         if (isBytesLike(obj)) return true;
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "a bytes-like object is required, not '" + tname + "'");
         return false;
     }
     if (enc == "rot13"){
         if (obj.type == "str") return true;
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "descriptor 'translate' for 'str' objects doesn't apply to a '" +
                              tname + "' object");
         return false;
@@ -340,7 +340,7 @@ static bool checkDecodeInput(cffi& a, const value& obj, const std::string& enc){
     if (enc == "hex") return true;
     if (enc == "base64"){
         if (isBytesLike(obj)) return true;
-        a.vm->raiseError("TypeError", "expected bytes-like object, not " + tname);
+        a.vmPtr->raiseError("TypeError", "expected bytes-like object, not " + tname);
         return false;
     }
     return true;
@@ -357,7 +357,7 @@ static value fnEncode(cffi& a){
     std::string text = rawOf(obj);
     std::string out, error;
     if (!codecEncode(text, encoding, out, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     if (enc == "rot13") return a.mkstr(out);
@@ -376,7 +376,7 @@ static value fnDecode(cffi& a){
     std::string out, error;
     bool isBytes = false;
     if (!codecDecode(a, raw, encoding, out, isBytes, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     if (isBytes) return mkBytes(a, out);
@@ -388,7 +388,7 @@ static value fnDecode(cffi& a){
 // fn iter encode
 static value fnIterEncode(cffi& a){
     value encoded = fnEncode(a);
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
     std::vector<value> items;
     items.push_back(encoded);
     value list = a.mklist(items);
@@ -400,7 +400,7 @@ static value fnIterEncode(cffi& a){
 // fn iter decode
 static value fnIterDecode(cffi& a){
     value decoded = fnDecode(a);
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
     std::vector<value> items;
     items.push_back(decoded);
     return a.mklist(items);
@@ -416,12 +416,12 @@ static value fnLookup(cffi& a){
     bool found = false;
     for (const char* name : known) if (enc == name) found = true;
     if (!found){
-        a.vm->raiseError("LookupError", "unknown encoding: " + encoding);
+        a.vmPtr->raiseError("LookupError", "unknown encoding: " + encoding);
         return a.none();
     }
     auto it = a.library->classes.find("CodecInfo");
     if (it == a.library->classes.end()) return a.none();
-    value obj = a.vm->makeNativeObject(a.library, &it->second, new std::string(enc));
+    value obj = a.vmPtr->makeNativeObject(a.library, &it->second, new std::string(enc));
     std::string display = enc;
     if (enc == "latin-1") display = "iso8859-1";
     else if (enc == "rot13") display = "rot-13";
@@ -460,7 +460,7 @@ static value fnCodecObjectEncode(cffi& a){
     std::string text = rawOf(obj);
     std::string out, error;
     if (!codecEncode(text, encoding, out, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     if (normalizeEncoding(encoding) == "rot13") return a.mkstr(out);
@@ -478,7 +478,7 @@ static value fnCodecObjectDecode(cffi& a){
     std::string out, error;
     bool isBytes = false;
     if (!codecDecode(a, raw, encoding, out, isBytes, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     if (isBytes) return mkBytes(a, out);
@@ -498,7 +498,7 @@ static value fnRegister(cffi& a){
 // fn lookup error
 static value fnLookupError(cffi& a){
     std::string name = a.argc() >= 1 ? rawOf(a.arg(0)) : "";
-    a.vm->raiseError("LookupError", "unknown error handler name '" + name + "'");
+    a.vmPtr->raiseError("LookupError", "unknown error handler name '" + name + "'");
     return a.none();
 }
 

@@ -12,7 +12,7 @@ value invokeNative(void* pointer, vm& vm, const ffilib* library,
         return vm.makeNone();
     }
     cffi context;
-    context.vm = &vm;
+    context.vmPtr = &vm;
     context.library = library;
     context.currentClass = klass;
     context.argv = args;
@@ -38,24 +38,24 @@ size_t cffi::argc() const{
 }
 
 value cffi::arg(size_t index) const{
-    if (index >= argv.size()) return vm ? vm->makeNone() : value{};
+    if (index >= argv.size()) return vmPtr ? vmPtr->makeNone() : value{};
     return argv[index];
 }
 
 std::string cffi::arg_str(size_t index) const{
-    return vm ? vm->toString(arg(index)) : "";
+    return vmPtr ? vmPtr->toString(arg(index)) : "";
 }
 
 long long cffi::arg_int(size_t index) const{
-    return vm ? vm->toInt(arg(index)) : 0;
+    return vmPtr ? vmPtr->toInt(arg(index)) : 0;
 }
 
 double cffi::arg_float(size_t index) const{
-    return vm ? vm->toFloat(arg(index)) : 0.0;
+    return vmPtr ? vmPtr->toFloat(arg(index)) : 0.0;
 }
 
 bool cffi::arg_bool(size_t index) const{
-    return vm ? vm->truthy(arg(index)) : false;
+    return vmPtr ? vmPtr->truthy(arg(index)) : false;
 }
 
 bool cffi::has_kwarg(const std::string& name) const{
@@ -70,54 +70,54 @@ value cffi::kwarg(const std::string& name) const{
 
 long long cffi::kwarg_int(const std::string& name, long long fallback) const{
     auto it = kwargv.find(name);
-    if (it == kwargv.end() || !vm) return fallback;
-    return vm->toInt(it->second);
+    if (it == kwargv.end() || !vmPtr) return fallback;
+    return vmPtr->toInt(it->second);
 }
 
 std::string cffi::kwarg_str(const std::string& name, const std::string& fallback) const{
     auto it = kwargv.find(name);
-    if (it == kwargv.end() || !vm) return fallback;
-    return vm->toString(it->second);
+    if (it == kwargv.end() || !vmPtr) return fallback;
+    return vmPtr->toString(it->second);
 }
 
 bool cffi::kwarg_bool(const std::string& name, bool fallback) const{
     auto it = kwargv.find(name);
-    if (it == kwargv.end() || !vm) return fallback;
-    return vm->truthy(it->second);
+    if (it == kwargv.end() || !vmPtr) return fallback;
+    return vmPtr->truthy(it->second);
 }
 
 
 value cffi::none() const{
-    return vm ? vm->makeNone() : value{};
+    return vmPtr ? vmPtr->makeNone() : value{};
 }
 
 value cffi::mkint(long long v) const{
-    return vm ? vm->makeInt(v) : value{};
+    return vmPtr ? vmPtr->makeInt(v) : value{};
 }
 
 value cffi::mkfloat(double v) const{
-    return vm ? vm->makeFloat(v) : value{};
+    return vmPtr ? vmPtr->makeFloat(v) : value{};
 }
 
 value cffi::mkbool(bool v) const{
-    return vm ? vm->makeBool(v) : value{};
+    return vmPtr ? vmPtr->makeBool(v) : value{};
 }
 
 value cffi::mkstr(const std::string& v) const{
-    return vm ? vm->makeString(v) : value{};
+    return vmPtr ? vmPtr->makeString(v) : value{};
 }
 
 value cffi::mklist(const std::vector<value>& elements) const{
-    return vm ? vm->makeList(elements) : value{};
+    return vmPtr ? vmPtr->makeList(elements) : value{};
 }
 
 value cffi::mkdict(const std::vector<std::pair<value, value>>& items) const{
-    return vm ? vm->makeDict(items) : value{};
+    return vmPtr ? vmPtr->makeDict(items) : value{};
 }
 
 value cffi::mkobject(void* handle) const{
-    if (!vm || !library || !currentClass) return none();
-    return vm->makeNativeObject(library, currentClass, handle);
+    if (!vmPtr || !library || !currentClass) return none();
+    return vmPtr->makeNativeObject(library, currentClass, handle);
 }
 
 

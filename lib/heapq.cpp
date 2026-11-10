@@ -17,9 +17,9 @@ namespace {
 // ᠭᠠᠷᠴᠠᠭ Less
 bool valueLess(minipy::cffi& a, const minipy::value& left, const minipy::value& right){
     if (left.type == "str" && right.type == "str"){
-        return a.vm->toString(left) < a.vm->toString(right);
+        return a.vmPtr->toString(left) < a.vmPtr->toString(right);
     }
-    return a.vm->toFloat(left) < a.vm->toFloat(right);
+    return a.vmPtr->toFloat(left) < a.vmPtr->toFloat(right);
 }
 
 // heap 列表
@@ -28,7 +28,7 @@ bool valueLess(minipy::cffi& a, const minipy::value& left, const minipy::value& 
 std::vector<minipy::value>* heapList(minipy::cffi& a, const char* name){
     auto value = a.arg(0);
     if (value.type != "list" || value.ptr == nullptr){
-        a.vm->raiseError("TypeError", std::string("object of type '") + value.type +
+        a.vmPtr->raiseError("TypeError", std::string("object of type '") + value.type +
                                           "' passed to " + name + "() does not support indexing");
         return nullptr;
     }
@@ -75,7 +75,7 @@ static minipy::value fnHeappop(minipy::cffi& a){
     auto* list = heapList(a, "heappop");
     if (!list) return a.none();
     if (list->empty()){
-        a.vm->raiseError("IndexError", "index out of range");
+        a.vmPtr->raiseError("IndexError", "index out of range");
         return a.none();
     }
     minipy::value result = list->front();
@@ -105,7 +105,7 @@ static minipy::value fnHeapreplace(minipy::cffi& a){
     auto* list = heapList(a, "heapreplace");
     if (!list) return a.none();
     if (list->empty()){
-        a.vm->raiseError("IndexError", "index out of range");
+        a.vmPtr->raiseError("IndexError", "index out of range");
         return a.none();
     }
     minipy::value result = list->front();
@@ -121,7 +121,7 @@ static minipy::value fnNsmallest(minipy::cffi& a){
     long long n = a.arg_int(0);
     if (n <= 0) return a.mklist({});
     std::vector<minipy::value> items;
-    a.vm->materializeIterable(a.arg(1), items);
+    a.vmPtr->materializeIterable(a.arg(1), items);
     auto less = [&a](const minipy::value& left, const minipy::value& right){ return valueLess(a, left, right); };
     std::sort(items.begin(), items.end(), less);
     if (n < static_cast<long long>(items.size())) items.resize(static_cast<size_t>(n));
@@ -135,7 +135,7 @@ static minipy::value fnNlargest(minipy::cffi& a){
     long long n = a.arg_int(0);
     if (n <= 0) return a.mklist({});
     std::vector<minipy::value> items;
-    a.vm->materializeIterable(a.arg(1), items);
+    a.vmPtr->materializeIterable(a.arg(1), items);
     auto greater = [&a](const minipy::value& left, const minipy::value& right){ return valueLess(a, right, left); };
     std::sort(items.begin(), items.end(), greater);
     if (n < static_cast<long long>(items.size())) items.resize(static_cast<size_t>(n));

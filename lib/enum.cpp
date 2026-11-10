@@ -190,7 +190,7 @@ static value fnMemberRepr(cffi& a){
     auto* st = memberStateOf(a.self());
     if (!st) return a.mkstr("<enum member>");
     std::string text = "<" + st->clsName + "." + st->name + ": " +
-                       pythonRepr(*a.vm, st->val) + ">";
+                       pythonRepr(*a.vmPtr, st->val) + ">";
     return a.mkstr(text);
 }
 
@@ -306,25 +306,25 @@ static value memberIntArith(cffi& a, const std::string& op){
         if (op == "-") return a.mkint(lv - rv);
         if (op == "*") return a.mkint(lv * rv);
         if (op == "%"){
-            if (rv == 0){ a.vm->raiseError("ZeroDivisionError", "integer division or modulo by zero"); return a.none(); }
+            if (rv == 0){ a.vmPtr->raiseError("ZeroDivisionError", "integer division or modulo by zero"); return a.none(); }
             long long q = lv % rv;
             if (q != 0 && ((q < 0) != (rv < 0))) q += rv;
             return a.mkint(q);
         }
         if (op == "//"){
-            if (rv == 0){ a.vm->raiseError("ZeroDivisionError", "integer division or modulo by zero"); return a.none(); }
+            if (rv == 0){ a.vmPtr->raiseError("ZeroDivisionError", "integer division or modulo by zero"); return a.none(); }
             long long q = lv / rv;
             if ((lv % rv) != 0 && ((lv < 0) != (rv < 0))) q -= 1;
             return a.mkint(q);
         }
     }
     if (other.type == "float"){
-        double rvf = a.vm->toFloat(other);
+        double rvf = a.vmPtr->toFloat(other);
         if (op == "+") return a.mkfloat(lv + rvf);
         if (op == "-") return a.mkfloat(lv - rvf);
         if (op == "*") return a.mkfloat(lv * rvf);
     }
-    a.vm->raiseError("TypeError", "unsupported operand type(s) for " + op + ": '" +
+    a.vmPtr->raiseError("TypeError", "unsupported operand type(s) for " + op + ": '" +
                      st->clsName + "' and '" +
                      (other.type == "none" ? "NoneType" : other.type) + "'");
     return a.none();
@@ -395,8 +395,8 @@ static value memberBitOp(cffi& a, const std::string& op){
     if (op == "|") r = lv | rv;
     else if (op == "&") r = lv & rv;
     else if (op == "^") r = lv ^ rv;
-    if (st && isFlagKind(st->kind)) return memberFromBits(*a.vm, st, r);
-    return a.vm->makeInt(r);
+    if (st && isFlagKind(st->kind)) return memberFromBits(*a.vmPtr, st, r);
+    return a.vmPtr->makeInt(r);
 }
 
 static value fnMemberOr(cffi& a){ return memberBitOp(a, "|"); }
@@ -455,14 +455,14 @@ static value fnUnique(cffi& a){
         for (size_t j = i + 1; j < map->size(); ++j){
             auto* si = memberStateOf((*map)[i].second);
             auto* sj = memberStateOf((*map)[j].second);
-            if (si && sj && a.vm->valuesEqual(si->val, sj->val)){
+            if (si && sj && a.vmPtr->valuesEqual(si->val, sj->val)){
                 std::string ni = (*map)[i].first.type == "str" && (*map)[i].first.ptr
                                      ? *static_cast<std::string*>((*map)[i].first.ptr)
                                      : si->name;
                 std::string nj = (*map)[j].first.type == "str" && (*map)[j].first.ptr
                                      ? *static_cast<std::string*>((*map)[j].first.ptr)
                                      : sj->name;
-                a.vm->raiseError("ValueError",
+                a.vmPtr->raiseError("ValueError",
                     "duplicate values found in <enum '" + klass->name + "'>: " +
                     nj + " -> " + ni);
                 return a.none();

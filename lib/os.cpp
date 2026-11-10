@@ -26,7 +26,7 @@ namespace {
 // os error
 // os ᠲᠠᠯᠳ᠋ᠠᠭᠤᠯᠭ᠎ᠠ
 value osError(cffi& a, const std::string& message){
-    a.vm->raiseError("OSError", message);
+    a.vmPtr->raiseError("OSError", message);
     return a.none();
 }
 
@@ -34,7 +34,7 @@ value osError(cffi& a, const std::string& message){
 // file not found error
 // file ᠦᠭᠡᠢ Found ᠲᠠᠯᠳ᠋ᠠᠭᠤᠯᠭ᠎ᠠ
 value fileNotFoundError(cffi& a, const std::string& message){
-    a.vm->raiseError("FileNotFoundError", message);
+    a.vmPtr->raiseError("FileNotFoundError", message);
     return a.none();
 }
 #if defined(_WIN32)
@@ -84,7 +84,7 @@ void walkInto(cffi& a, const std::wstring& dirPath, std::vector<value>& out){
         }
     } while (FindNextFileW(handle, &entry));
     FindClose(handle);
-    out.push_back(a.vm->makeTuple(
+    out.push_back(a.vmPtr->makeTuple(
         {a.mkstr(wideToUtf8(dirPath)), a.mklist(dirNames), a.mklist(fileNames)}));
     for (const auto& name : subDirs){
         walkInto(a, joinPath(dirPath, name), out);
@@ -350,7 +350,7 @@ static value fnWalk(cffi& a){
                 fileNames.push_back(a.mkstr(entry.name));
             }
         }
-        items.push_back(a.vm->makeTuple(
+        items.push_back(a.vmPtr->makeTuple(
             {a.mkstr(dirPath), a.mklist(dirNames), a.mklist(fileNames)}));
         for (const auto& sub : subDirs) pending.push_back(sub);
     }
@@ -380,7 +380,7 @@ static value fnGetpid(cffi& a){
 static value fnUrandom(cffi& a){
     long long count = a.arg_int(0);
     if (count < 0){
-        a.vm->raiseError("ValueError", "negative argument not allowed");
+        a.vmPtr->raiseError("ValueError", "negative argument not allowed");
         return a.none();
     }
 
@@ -403,7 +403,7 @@ static value fnAccess(cffi& a){
     std::string path = a.arg_str(0);
     long long mode = a.arg_int(1);
     if (mode < 0){
-        a.vm->raiseError("ValueError", "invalid mode");
+        a.vmPtr->raiseError("ValueError", "invalid mode");
         return a.none();
     }
 #if defined(_WIN32)

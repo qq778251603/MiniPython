@@ -124,7 +124,7 @@ value makeUuidObject(cffi& a, const std::array<unsigned char, 16>& b, int forced
     if (applyVersion) setVersion(bytes, forcedVersion);
     auto* st = new UuidState();
     st->bytes = bytes;
-    value obj = a.vm->makeNativeObject(a.library, findClass(a.library, "UUID"), st);
+    value obj = a.vmPtr->makeNativeObject(a.library, findClass(a.library, "UUID"), st);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         inst->attributes["hex"] = a.mkstr(hexOf(bytes));
@@ -155,7 +155,7 @@ value makeUuidObject(cffi& a, const std::array<unsigned char, 16>& b, int forced
             a.mkint(static_cast<long long>(bytes[9])),
             a.mkint(static_cast<long long>(node))
         };
-        inst->attributes["fields"] = a.vm->makeTuple(fields);
+        inst->attributes["fields"] = a.vmPtr->makeTuple(fields);
         inst->attributes["node"] = a.mkint(static_cast<long long>(node));
         inst->attributes["clock_seq"] = a.mkint(static_cast<long long>(clockSeq));
         // time 始终按字节计算 (CPython 不检查 version)
@@ -364,14 +364,14 @@ static value fnUuidCtor(cffi& a){
         }
     } else if (first.type == "str" && a.argc() > 0 && !a.has_kwarg("hex")){
         if (!parseHex(a.arg_str(0), bytes)){
-            a.vm->raiseError("ValueError", "badly formed hexadecimal UUID string");
+            a.vmPtr->raiseError("ValueError", "badly formed hexadecimal UUID string");
             return a.none();
         }
         haveBytes = true;
     }
     if (!haveBytes && a.has_kwarg("hex")){
         if (!parseHex(a.kwarg_str("hex", ""), bytes)){
-            a.vm->raiseError("ValueError", "badly formed hexadecimal UUID string");
+            a.vmPtr->raiseError("ValueError", "badly formed hexadecimal UUID string");
             return a.none();
         }
         haveBytes = true;
@@ -379,7 +379,7 @@ static value fnUuidCtor(cffi& a){
     if (!haveBytes && a.has_kwarg("bytes")){
         std::string raw = rawOf(a.kwarg("bytes"));
         if (raw.size() != 16){
-            a.vm->raiseError("ValueError", "bytes is not a 16-char string");
+            a.vmPtr->raiseError("ValueError", "bytes is not a 16-char string");
             return a.none();
         }
         std::memcpy(bytes.data(), raw.data(), 16);
@@ -388,7 +388,7 @@ static value fnUuidCtor(cffi& a){
     if (!haveBytes && a.has_kwarg("bytes_le")){
         std::string raw = rawOf(a.kwarg("bytes_le"));
         if (raw.size() != 16){
-            a.vm->raiseError("ValueError", "bytes_le is not a 16-char string");
+            a.vmPtr->raiseError("ValueError", "bytes_le is not a 16-char string");
             return a.none();
         }
         bytes[0] = static_cast<unsigned char>(raw[3]);
@@ -409,11 +409,11 @@ static value fnUuidCtor(cffi& a){
             fields = *static_cast<std::vector<value>*>(fieldsValue.ptr);
         }
         if (fields.size() != 6){
-            a.vm->raiseError("ValueError", "fields is not a 6-tuple");
+            a.vmPtr->raiseError("ValueError", "fields is not a 6-tuple");
             return a.none();
         }
         long long f[6];
-        for (int i = 0; i < 6; ++i) f[i] = intOf(*a.vm, fields[i]);
+        for (int i = 0; i < 6; ++i) f[i] = intOf(*a.vmPtr, fields[i]);
         bytes[0] = static_cast<unsigned char>((f[0] >> 24) & 0xFF);
         bytes[1] = static_cast<unsigned char>((f[0] >> 16) & 0xFF);
         bytes[2] = static_cast<unsigned char>((f[0] >> 8) & 0xFF);
@@ -430,7 +430,7 @@ static value fnUuidCtor(cffi& a){
     }
     if (!haveBytes && a.has_kwarg("int")){
         value intValue = a.kwarg("int");
-        unsigned long long low = static_cast<unsigned long long>(intOf(*a.vm, intValue));
+        unsigned long long low = static_cast<unsigned long long>(intOf(*a.vmPtr, intValue));
         for (int i = 15; i >= 8; --i){
             bytes[i] = static_cast<unsigned char>(low & 0xFF);
             low >>= 8;
@@ -438,7 +438,7 @@ static value fnUuidCtor(cffi& a){
         haveBytes = true;
     }
     if (!haveBytes){
-        a.vm->raiseError("TypeError", "one of the hex, bytes, bytes_le, fields, "
+        a.vmPtr->raiseError("TypeError", "one of the hex, bytes, bytes_le, fields, "
                         "or int arguments must be given");
         return a.none();
     }

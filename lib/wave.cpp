@@ -140,10 +140,10 @@ static value fnReadCtor(cffi& a){
     st->data = readAll(path);
     std::string err;
     if (!parseWave(st, err)){
-        a.vm->raiseError("Error", err);
+        a.vmPtr->raiseError("Error", err);
         return a.none();
     }
-    value obj = a.vm->makeNativeObject(a.library,
+    value obj = a.vmPtr->makeNativeObject(a.library,
                                        findClass(a.library, "Wave_read"), st);
     return obj;
 }
@@ -154,7 +154,7 @@ static value fnReadCtor(cffi& a){
 static value fnWriteCtor(cffi& a){
     auto* st = new WaveWriteState();
     st->filename = a.arg_str(0);
-    value obj = a.vm->makeNativeObject(a.library,
+    value obj = a.vmPtr->makeNativeObject(a.library,
                                        findClass(a.library, "Wave_write"), st);
     return obj;
 }
@@ -198,8 +198,8 @@ static value fnGetcompname(cffi& a){
 // getparams
 static value fnGetparams(cffi& a){
     auto* st = readState(a);
-    if (!st) return a.vm->makeTuple({});
-    return a.vm->makeTuple({a.mkint(st->channels), a.mkint(st->sampwidth),
+    if (!st) return a.vmPtr->makeTuple({});
+    return a.vmPtr->makeTuple({a.mkint(st->channels), a.mkint(st->sampwidth),
                             a.mkint(st->framerate), a.mkint(st->nframes),
                             a.mkstr(st->comptype), a.mkstr(st->compname)});
 }
@@ -285,7 +285,7 @@ static value fnSetsampwidth(cffi& a){
     if (!st) return a.none();
     long long width = a.arg_int(0);
     if (width < 1 || width > 4){
-        a.vm->raiseError("Error", "bad sample width");
+        a.vmPtr->raiseError("Error", "bad sample width");
         return a.none();
     }
     st->sampwidth = width;
@@ -314,7 +314,7 @@ static value fnSetcomptype(cffi& a){
     if (!st) return a.none();
     st->comptype = a.arg_str(0);
     if (st->comptype != "NONE"){
-        a.vm->raiseError("Error", "unknown compression type");
+        a.vmPtr->raiseError("Error", "unknown compression type");
         return a.none();
     }
     st->compname = a.argc() > 1 ? a.arg_str(1) : "not compressed";
@@ -328,24 +328,24 @@ static value fnSetparams(cffi& a){
     if ((params.type == "tuple" || params.type == "list") && params.ptr)
         fields = static_cast<std::vector<value>*>(params.ptr);
     if (!fields || fields->size() < 6){
-        a.vm->raiseError("Error", "bad params");
+        a.vmPtr->raiseError("Error", "bad params");
         return a.none();
     }
     auto* st = writeState(a);
     if (!st) return a.none();
-    st->channels = a.vm->toInt((*fields)[0]);
-    long long width = a.vm->toInt((*fields)[1]);
+    st->channels = a.vmPtr->toInt((*fields)[0]);
+    long long width = a.vmPtr->toInt((*fields)[1]);
     if (width < 1 || width > 4){
-        a.vm->raiseError("Error", "bad sample width");
+        a.vmPtr->raiseError("Error", "bad sample width");
         return a.none();
     }
     st->sampwidth = width;
-    st->framerate = a.vm->toInt((*fields)[2]);
-    st->nframes = a.vm->toInt((*fields)[3]);
-    st->comptype = a.vm->toString((*fields)[4]);
-    st->compname = a.vm->toString((*fields)[5]);
+    st->framerate = a.vmPtr->toInt((*fields)[2]);
+    st->nframes = a.vmPtr->toInt((*fields)[3]);
+    st->comptype = a.vmPtr->toString((*fields)[4]);
+    st->compname = a.vmPtr->toString((*fields)[5]);
     if (st->comptype != "NONE"){
-        a.vm->raiseError("Error", "unknown compression type");
+        a.vmPtr->raiseError("Error", "unknown compression type");
         return a.none();
     }
     return a.none();
@@ -380,11 +380,11 @@ static value fnWriteframes(cffi& a){
         raw = *static_cast<std::string*>(data.ptr);
     long long frameBytes = st->channels * st->sampwidth;
     if (frameBytes <= 0){
-        a.vm->raiseError("Error", "number of channels not specified");
+        a.vmPtr->raiseError("Error", "number of channels not specified");
         return a.none();
     }
     if (raw.size() % static_cast<size_t>(frameBytes) != 0){
-        a.vm->raiseError("Error", "data chunk length not a whole number of frames");
+        a.vmPtr->raiseError("Error", "data chunk length not a whole number of frames");
         return a.none();
     }
     st->buffer += raw;
@@ -396,7 +396,7 @@ static value fnWriteframes(cffi& a){
 // ᠪᠦᠭᠦᠳᠡ WAV ᠪᠢᠴᠢᠭ ᠪᠢᠴᠢᠬᠦ
 bool flushWave(cffi& a, WaveWriteState* st){
     if (st->channels <= 0 || st->sampwidth <= 0 || st->framerate <= 0){
-        a.vm->raiseError("Error", "not all parameters set");
+        a.vmPtr->raiseError("Error", "not all parameters set");
         return false;
     }
     long long frameBytes = st->channels * st->sampwidth;
@@ -405,7 +405,7 @@ bool flushWave(cffi& a, WaveWriteState* st){
                           ? st->buffer.size() / static_cast<size_t>(frameBytes) : 0);
     std::ofstream out(st->filename, std::ios::binary);
     if (!out){
-        a.vm->raiseError("Error", "cannot open output file");
+        a.vmPtr->raiseError("Error", "cannot open output file");
         return false;
     }
     auto put32 = [&](uint32_t v){ out.put(static_cast<char>(v & 0xFF)); out.put(static_cast<char>((v >> 8) & 0xFF)); out.put(static_cast<char>((v >> 16) & 0xFF)); out.put(static_cast<char>((v >> 24) & 0xFF)); };
@@ -453,17 +453,17 @@ static value fnOpen(cffi& a){
     if (mode.find('w') != std::string::npos){
         auto* st = new WaveWriteState();
         st->filename = a.arg_str(0);
-        return a.vm->makeNativeObject(a.library,
+        return a.vmPtr->makeNativeObject(a.library,
                                       findClass(a.library, "Wave_write"), st);
     }
     auto* st = new WaveReadState();
     st->data = readAll(a.arg_str(0));
     std::string err;
     if (!parseWave(st, err)){
-        a.vm->raiseError("Error", err);
+        a.vmPtr->raiseError("Error", err);
         return a.none();
     }
-    return a.vm->makeNativeObject(a.library,
+    return a.vmPtr->makeNativeObject(a.library,
                                   findClass(a.library, "Wave_read"), st);
 }
 

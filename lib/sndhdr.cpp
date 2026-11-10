@@ -79,7 +79,7 @@ double extended80(const std::string& h, size_t off){
 // ᠦᠷᠳᠦᠨ ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
 value makeHeader(cffi& a, const std::string& filetype, long long channels,
                  long long frames, long long rate, long long sampwidth){
-    return a.vm->makeTuple({a.mkstr(filetype), a.mkint(channels),
+    return a.vmPtr->makeTuple({a.mkstr(filetype), a.mkint(channels),
                             a.mkint(frames), a.mkint(rate), a.mkint(sampwidth)});
 }
 
@@ -192,12 +192,12 @@ static value fnWhat(cffi& a){
     } else if (fileArg.type == "bytes" && fileArg.ptr){
         h = *static_cast<std::string*>(fileArg.ptr);
     } else {
-        value readMethod = a.vm->getAttribute(fileArg, "read");
-        if (!a.vm->hasError()){
-            value chunk = a.vm->callValue(readMethod, {a.mkint(65536)});
-            if (!a.vm->hasError()) h = rawOf(chunk);
+        value readMethod = a.vmPtr->getAttribute(fileArg, "read");
+        if (!a.vmPtr->hasError()){
+            value chunk = a.vmPtr->callValue(readMethod, {a.mkint(65536)});
+            if (!a.vmPtr->hasError()) h = rawOf(chunk);
         }
-        a.vm->clearErr();
+        a.vmPtr->clearErr();
     }
     value result = parseWav(a, h);
     if (result.type != "none") return result;

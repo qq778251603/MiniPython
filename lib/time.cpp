@@ -49,15 +49,15 @@ bool dataToStructTime(cffi& a, const value& val, std::tm& tm){
     if (list->size() < 6) return false;
     std::tm zero{};
     tm = zero;
-    tm.tm_year = static_cast<int>(a.vm->toInt((*list)[0])) - 1900;
-    tm.tm_mon = static_cast<int>(a.vm->toInt((*list)[1])) - 1;
-    tm.tm_mday = static_cast<int>(a.vm->toInt((*list)[2]));
-    tm.tm_hour = static_cast<int>(a.vm->toInt((*list)[3]));
-    tm.tm_min = static_cast<int>(a.vm->toInt((*list)[4]));
-    tm.tm_sec = static_cast<int>(a.vm->toInt((*list)[5]));
-    if (list->size() > 6) tm.tm_wday = static_cast<int>((a.vm->toInt((*list)[6]) + 1) % 7);
-    if (list->size() > 7) tm.tm_yday = static_cast<int>(a.vm->toInt((*list)[7])) - 1;
-    if (list->size() > 8) tm.tm_isdst = static_cast<int>(a.vm->toInt((*list)[8]));
+    tm.tm_year = static_cast<int>(a.vmPtr->toInt((*list)[0])) - 1900;
+    tm.tm_mon = static_cast<int>(a.vmPtr->toInt((*list)[1])) - 1;
+    tm.tm_mday = static_cast<int>(a.vmPtr->toInt((*list)[2]));
+    tm.tm_hour = static_cast<int>(a.vmPtr->toInt((*list)[3]));
+    tm.tm_min = static_cast<int>(a.vmPtr->toInt((*list)[4]));
+    tm.tm_sec = static_cast<int>(a.vmPtr->toInt((*list)[5]));
+    if (list->size() > 6) tm.tm_wday = static_cast<int>((a.vmPtr->toInt((*list)[6]) + 1) % 7);
+    if (list->size() > 7) tm.tm_yday = static_cast<int>(a.vmPtr->toInt((*list)[7])) - 1;
+    if (list->size() > 8) tm.tm_isdst = static_cast<int>(a.vmPtr->toInt((*list)[8]));
     return true;
 }
 
@@ -171,7 +171,7 @@ static value fnProcessTime(cffi& a){
 static value fnSleep(cffi& a){
     double seconds = a.arg_float(0);
     if (seconds < 0){
-        a.vm->raiseError("ValueError", "sleep length must be non-negative");
+        a.vmPtr->raiseError("ValueError", "sleep length must be non-negative");
         return a.none();
     }
     std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
@@ -217,7 +217,7 @@ static value fnLocaltime(cffi& a){
 static value fnMktime(cffi& a){
     std::tm tm{};
     if (!dataToStructTime(a, a.arg(0), tm)){
-        a.vm->raiseError("TypeError", "mktime() argument must be a 9-sequence");
+        a.vmPtr->raiseError("TypeError", "mktime() argument must be a 9-sequence");
         return a.none();
     }
     return a.mkfloat(static_cast<double>(std::mktime(&tm)));
@@ -318,14 +318,14 @@ static value fnStrptime(cffi& a){
     }
     if (!matched){
         if (!badDirective.empty()){
-            a.vm->raiseError("ValueError", "'" + badDirective + "' is a bad directive in format '" + format + "'");
+            a.vmPtr->raiseError("ValueError", "'" + badDirective + "' is a bad directive in format '" + format + "'");
         } else {
-            a.vm->raiseError("ValueError", "time data '" + text + "' does not match format '" + format + "'");
+            a.vmPtr->raiseError("ValueError", "time data '" + text + "' does not match format '" + format + "'");
         }
         return a.none();
     }
     if (pos < text.size()){
-        a.vm->raiseError("ValueError", "unconverted data remains: " + text.substr(pos));
+        a.vmPtr->raiseError("ValueError", "unconverted data remains: " + text.substr(pos));
         return a.none();
     }
     fillDerivedTimeFields(tm);

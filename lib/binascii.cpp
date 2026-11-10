@@ -187,7 +187,7 @@ static value fnA2bBase64(cffi& a){
     bool strict = a.has_kwarg("strict_mode") ? a.kwarg_bool("strict_mode", false) : false;
     std::string out, error;
     if (!decodeBase64(a, raw, strict, out, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     return mkBytes(a, out);
@@ -210,7 +210,7 @@ static value fnB2aBase64(cffi& a){
 static value fnA2bHex(cffi& a){
     std::string raw = rawOf(a.arg(0));
     if (raw.size() % 2 != 0){
-        a.vm->raiseError("Error", "Odd-length string");
+        a.vmPtr->raiseError("Error", "Odd-length string");
         return a.none();
     }
     std::string out;
@@ -218,7 +218,7 @@ static value fnA2bHex(cffi& a){
         int hi = hexValue(raw[i]);
         int lo = hexValue(raw[i + 1]);
         if (hi < 0 || lo < 0){
-            a.vm->raiseError("Error", "Non-hexadecimal digit found");
+            a.vmPtr->raiseError("Error", "Non-hexadecimal digit found");
             return a.none();
         }
         out.push_back(static_cast<char>((hi << 4) | lo));
@@ -295,7 +295,7 @@ static value fnA2bQp(cffi& a){
     std::string raw = rawOf(a.arg(0));
     bool header = false;
     if (a.has_kwarg("header")) header = a.kwarg_bool("header", false);
-    else if (a.argc() >= 2) header = a.vm->truthy(a.arg(1));
+    else if (a.argc() >= 2) header = a.vmPtr->truthy(a.arg(1));
     std::string out;
     size_t i = 0;
     while (i < raw.size()){
@@ -338,11 +338,11 @@ static value fnB2aQp(cffi& a){
     bool istext = true;
     bool header = false;
     if (a.has_kwarg("quotetabs")) quotetabs = a.kwarg_bool("quotetabs", false);
-    else if (a.argc() >= 2) quotetabs = a.vm->truthy(a.arg(1));
+    else if (a.argc() >= 2) quotetabs = a.vmPtr->truthy(a.arg(1));
     if (a.has_kwarg("istext")) istext = a.kwarg_bool("istext", true);
-    else if (a.argc() >= 3) istext = a.vm->truthy(a.arg(2));
+    else if (a.argc() >= 3) istext = a.vmPtr->truthy(a.arg(2));
     if (a.has_kwarg("header")) header = a.kwarg_bool("header", false);
-    else if (a.argc() >= 4) header = a.vm->truthy(a.arg(3));
+    else if (a.argc() >= 4) header = a.vmPtr->truthy(a.arg(3));
 
     size_t n = raw.size();
     bool crlf = false;
@@ -422,7 +422,7 @@ static value fnB2aQp(cffi& a){
 static value fnA2bUu(cffi& a){
     std::string raw = rawOf(a.arg(0));
     if (raw.empty()){
-        a.vm->raiseError("Error", "Missing length byte");
+        a.vmPtr->raiseError("Error", "Missing length byte");
         return a.none();
     }
     long long binLen = (static_cast<unsigned char>(raw[0]) - ' ') & 077;
@@ -441,7 +441,7 @@ static value fnA2bUu(cffi& a){
             thisCh = 0;
         } else {
             if (thisCh < ' ' || thisCh > (' ' + 64)){
-                a.vm->raiseError("Error", "Illegal char");
+                a.vmPtr->raiseError("Error", "Illegal char");
                 return a.none();
             }
             thisCh = static_cast<unsigned char>((static_cast<int>(thisCh) - ' ') & 077);
@@ -462,7 +462,7 @@ static value fnA2bUu(cffi& a){
         ++idx;
         if (thisCh != ' ' && thisCh != static_cast<unsigned char>(' ' + 64) &&
             thisCh != '\n' && thisCh != '\r'){
-            a.vm->raiseError("Error", "Trailing garbage");
+            a.vmPtr->raiseError("Error", "Trailing garbage");
             return a.none();
         }
     }
@@ -475,9 +475,9 @@ static value fnA2bUu(cffi& a){
 static value fnB2aUu(cffi& a){
     std::string raw = rawOf(a.arg(0));
     bool backtick = a.has_kwarg("backtick") ? a.kwarg_bool("backtick", false)
-                                            : (a.argc() >= 2 ? a.vm->truthy(a.arg(1)) : false);
+                                            : (a.argc() >= 2 ? a.vmPtr->truthy(a.arg(1)) : false);
     if (raw.size() > 45){
-        a.vm->raiseError("Error", "At most 45 bytes at once");
+        a.vmPtr->raiseError("Error", "At most 45 bytes at once");
         return a.none();
     }
     std::string out;

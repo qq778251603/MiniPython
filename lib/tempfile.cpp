@@ -73,13 +73,13 @@ std::string joinPath(const std::string& dir, const std::string& name){
 
 std::string optString(cffi& a, const char* kw, const std::string& def){
     if (a.has_kwarg(kw) && a.kwarg(kw).type == "str")
-        return a.vm->toString(a.kwarg(kw));
+        return a.vmPtr->toString(a.kwarg(kw));
     return def;
 }
 
 bool optBool(cffi& a, const char* kw, bool def){
     if (a.has_kwarg(kw) && a.kwarg(kw).type != "none")
-        return a.vm->truthy(a.kwarg(kw));
+        return a.vmPtr->truthy(a.kwarg(kw));
     return def;
 }
 
@@ -120,10 +120,10 @@ static value fnMkstemp(cffi& a){
             std::vector<value> pair;
             pair.push_back(a.mkint(fd));
             pair.push_back(a.mkstr(name));
-            return a.vm->makeTuple(pair);
+            return a.vmPtr->makeTuple(pair);
         }
     }
-    a.vm->raiseError("FileExistsError", "No usable temporary file name found");
+    a.vmPtr->raiseError("FileExistsError", "No usable temporary file name found");
     return a.none();
 }
 
@@ -141,7 +141,7 @@ static value fnMkdtemp(cffi& a){
             return a.mkstr(name);
         ec.clear();
     }
-    a.vm->raiseError("FileExistsError", "No usable temporary directory name found");
+    a.vmPtr->raiseError("FileExistsError", "No usable temporary directory name found");
     return a.none();
 }
 
@@ -187,14 +187,14 @@ static TempFileState* tempFileState(cffi& a){
 }
 
 static value openFileValue(cffi& a, const std::string& path, const std::string& mode){
-    ffilib* builtins = a.vm->findCffiLibrary("builtins");
+    ffilib* builtins = a.vmPtr->findCffiLibrary("builtins");
     value fileObj = a.none();
     if (!builtins) return fileObj;
     std::vector<value> args;
     args.push_back(a.mkstr(path));
     args.push_back(a.mkstr(mode));
     std::map<std::string, value> kwargs;
-    cffiCallFunction(*builtins, "open", *a.vm, args, fileObj, kwargs);
+    cffiCallFunction(*builtins, "open", *a.vmPtr, args, fileObj, kwargs);
     return fileObj;
 }
 
@@ -221,7 +221,7 @@ static value makeTempFile(cffi& a, bool alwaysDelete){
     }
     if (fd < 0){
         delete st;
-        a.vm->raiseError("FileExistsError", "No usable temporary file name found");
+        a.vmPtr->raiseError("FileExistsError", "No usable temporary file name found");
         return a.none();
     }
     closeFd(fd);
@@ -229,8 +229,8 @@ static value makeTempFile(cffi& a, bool alwaysDelete){
     if (st->file.type != "native_object" || !st->file.ptr){
         std::string failedPath = st->path;
         delete st;
-        if (!a.vm->hasError())
-            a.vm->raiseError("OSError", "cannot open temporary file '" + failedPath + "'");
+        if (!a.vmPtr->hasError())
+            a.vmPtr->raiseError("OSError", "cannot open temporary file '" + failedPath + "'");
         return a.none();
     }
     value obj = a.mkobject(st);
@@ -254,14 +254,14 @@ static value tempDelegate(cffi& a, const std::string& name){
     auto* st = tempFileState(a);
     if (!st || !st->file.ptr) return a.none();
     if (st->closed){
-        a.vm->raiseError("ValueError", "I/O operation on closed file");
+        a.vmPtr->raiseError("ValueError", "I/O operation on closed file");
         return a.none();
     }
     std::vector<value> args;
     for (size_t i = 0; i < a.argc(); ++i) args.push_back(a.arg(i));
     value result = a.none();
-    if (!cffiCallMethod(*a.vm, st->file, name, args, result, a.kwargv)){
-        if (!a.vm->hasError()) a.vm->raiseError("UnsupportedOperation", name);
+    if (!cffiCallMethod(*a.vmPtr, st->file, name, args, result, a.kwargv)){
+        if (!a.vmPtr->hasError()) a.vmPtr->raiseError("UnsupportedOperation", name);
         return a.none();
     }
     return result;
@@ -289,7 +289,7 @@ static value fnTempClose(cffi& a){
     value self = a.self();
     if (!st->closed){
         value r = a.none();
-        if (st->file.ptr) cffiCallMethod(*a.vm, st->file, "close", {}, r);
+        if (st->file.ptr) cffiCallMethod(*a.vmPtr, st->file, "close", {}, r);
         st->closed = true;
         if (self.ptr)
             static_cast<ffi_instance*>(self.ptr)->attributes["closed"] = a.mkbool(true);
@@ -313,22 +313,22 @@ static value fnTempIter(cffi& a){ return a.self(); }
 static value fnTempNext(cffi& a){
     auto* st = tempFileState(a);
     if (!st || !st->file.ptr){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     std::vector<value> args;
     value result = a.none();
-    if (cffiCallMethod(*a.vm, st->file, "__next__", args, result, {})) return result;
-    a.vm->clearErr();
-    if (cffiCallMethod(*a.vm, st->file, "readline", args, result, {})){
+    if (cffiCallMethod(*a.vmPtr, st->file, "__next__", args, result, {})) return result;
+    a.vmPtr->clearErr();
+    if (cffiCallMethod(*a.vmPtr, st->file, "readline", args, result, {})){
         if (result.type == "str" && result.ptr &&
             static_cast<std::string*>(result.ptr)->empty()){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
         }
         return result;
     }
-    a.vm->clearErr();
-    a.vm->raiseError("StopIteration", "");
+    a.vmPtr->clearErr();
+    a.vmPtr->raiseError("StopIteration", "");
     return a.none();
 }
 
@@ -366,7 +366,7 @@ static value fnTemporaryDirectoryCtor(cffi& a){
         ec.clear();
     }
     if (!created){
-        a.vm->raiseError("FileExistsError", "No usable temporary directory name found");
+        a.vmPtr->raiseError("FileExistsError", "No usable temporary directory name found");
         return a.none();
     }
     auto* st = new TempDirState();

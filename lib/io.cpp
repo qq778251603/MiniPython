@@ -45,7 +45,7 @@ BytesIoState* bytesState(cffi& a){
 
 bool checkClosed(cffi& a, bool closed){
     if (closed){
-        a.vm->raiseError("ValueError", "I/O operation on closed file.");
+        a.vmPtr->raiseError("ValueError", "I/O operation on closed file.");
         return true;
     }
     return false;
@@ -80,7 +80,7 @@ static void strWriteAt(StringIoState* state, const std::string& text){
 static value fnStrWrite(cffi& a){
     auto* state = strState(a);
     if (!state || checkClosed(a, state->closed)) return a.none();
-    std::string text = a.vm->toString(a.arg(0));
+    std::string text = a.vmPtr->toString(a.arg(0));
     strWriteAt(state, text);
     return a.mkint(static_cast<long long>(text.size()));
 }
@@ -200,9 +200,9 @@ static value fnStrWritelines(cffi& a){
     auto* state = strState(a);
     if (!state || checkClosed(a, state->closed)) return a.none();
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     for (auto& item : items){
-        strWriteAt(state, a.vm->toString(item));
+        strWriteAt(state, a.vmPtr->toString(item));
     }
     return a.none();
 }
@@ -213,7 +213,7 @@ static value fnStrBoolFalse(cffi& a){ return a.mkbool(false); }
 static value fnStrNext(cffi& a){
     auto* state = strState(a);
     if (!state || state->pos >= state->buffer.size()){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     return fnStrReadline(a);
@@ -373,7 +373,7 @@ static value fnBytesWritelines(cffi& a){
     auto* state = bytesState(a);
     if (!state || checkClosed(a, state->closed)) return a.none();
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     for (auto& item : items){
         if (item.ptr && (item.type == "bytes" || item.type == "bytearray" || item.type == "str"))
             bytesWriteAt(state, *static_cast<std::string*>(item.ptr));
@@ -398,7 +398,7 @@ static value fnBytesIter(cffi& a){ return a.self(); }
 static value fnBytesNext(cffi& a){
     auto* state = bytesState(a);
     if (!state || state->pos >= state->buffer.size()){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     return fnBytesReadline(a);
@@ -464,16 +464,16 @@ static value wrapDelegate(cffi& a, const std::string& name){
     auto* st = wrapStateOf(a);
     if (!st || !st->reader.ptr) return a.none();
     if (st->closed){
-        a.vm->raiseError("ValueError", "I/O operation on closed file.");
+        a.vmPtr->raiseError("ValueError", "I/O operation on closed file.");
         return a.none();
     }
     std::vector<value> args;
     for (size_t i = 0; i < a.argc(); ++i) args.push_back(a.arg(i));
     value result = a.none();
     const value& target = (st->hasWriter && name == "write") ? st->writer : st->reader;
-    if (!cffiCallMethod(*a.vm, target, name, args, result, a.kwargv)){
-        if (!a.vm->hasError())
-            a.vm->raiseError("UnsupportedOperation", name);
+    if (!cffiCallMethod(*a.vmPtr, target, name, args, result, a.kwargv)){
+        if (!a.vmPtr->hasError())
+            a.vmPtr->raiseError("UnsupportedOperation", name);
         return a.none();
     }
     return convertTextResult(a, name, result);
@@ -501,7 +501,7 @@ static value fnWrapReadable(cffi& a){
     if (!st) return a.mkbool(false);
     value md = a.attr(st->reader, "mode");
     if (md.type == "str"){
-        std::string m = a.vm->toString(md);
+        std::string m = a.vmPtr->toString(md);
         return a.mkbool(m.find('r') != std::string::npos || m.find('+') != std::string::npos);
     }
     return a.mkbool(true);
@@ -513,7 +513,7 @@ static value fnWrapWritable(cffi& a){
     if (st->hasWriter) return a.mkbool(true);
     value md = a.attr(st->reader, "mode");
     if (md.type == "str"){
-        std::string m = a.vm->toString(md);
+        std::string m = a.vmPtr->toString(md);
         return a.mkbool(m.find('w') != std::string::npos || m.find('a') != std::string::npos ||
                         m.find('x') != std::string::npos || m.find('+') != std::string::npos);
     }
@@ -533,7 +533,7 @@ static value fnWrapDetach(cffi& a){
     auto* st = wrapStateOf(a);
     if (!st) return a.none();
     if (st->closed){
-        a.vm->raiseError("ValueError", "I/O operation on closed file.");
+        a.vmPtr->raiseError("ValueError", "I/O operation on closed file.");
         return a.none();
     }
     st->closed = true;
@@ -547,10 +547,10 @@ static value fnWrapClose(cffi& a){
     if (!st) return a.none();
     if (!st->closed){
         value r = a.none();
-        if (st->reader.ptr) cffiCallMethod(*a.vm, st->reader, "close", {}, r);
+        if (st->reader.ptr) cffiCallMethod(*a.vmPtr, st->reader, "close", {}, r);
         if (st->hasWriter && st->writer.ptr){
             value r2 = a.none();
-            cffiCallMethod(*a.vm, st->writer, "close", {}, r2);
+            cffiCallMethod(*a.vmPtr, st->writer, "close", {}, r2);
         }
         st->closed = true;
         if (self.ptr)
@@ -575,22 +575,22 @@ static value fnWrapIter(cffi& a){
 static value fnWrapNext(cffi& a){
     auto* st = wrapStateOf(a);
     if (!st || !st->reader.ptr){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     std::vector<value> args;
     value result = a.none();
-    if (cffiCallMethod(*a.vm, st->reader, "__next__", args, result, {})) return result;
-    a.vm->clearErr();
-    if (cffiCallMethod(*a.vm, st->reader, "readline", args, result, {})){
+    if (cffiCallMethod(*a.vmPtr, st->reader, "__next__", args, result, {})) return result;
+    a.vmPtr->clearErr();
+    if (cffiCallMethod(*a.vmPtr, st->reader, "readline", args, result, {})){
         if (result.type == "str" && result.ptr &&
             static_cast<std::string*>(result.ptr)->empty()){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
         }
         return result;
     }
-    a.vm->clearErr();
-    a.vm->raiseError("StopIteration", "");
+    a.vmPtr->clearErr();
+    a.vmPtr->raiseError("StopIteration", "");
     return a.none();
 }
 
@@ -606,7 +606,7 @@ static value fnBaseCtor(cffi& a){
 }
 
 static value baseUnsupported(cffi& a, const std::string& name){
-    a.vm->raiseError("UnsupportedOperation", name);
+    a.vmPtr->raiseError("UnsupportedOperation", name);
     return a.none();
 }
 
@@ -618,7 +618,7 @@ static value fnBaseTruncate(cffi& a){ return baseUnsupported(a, "truncate"); }
 static value fnBaseFileno(cffi& a){ return baseUnsupported(a, "fileno"); }
 
 static value fnNotImplemented(cffi& a){
-    a.vm->raiseError("NotImplementedError", "");
+    a.vmPtr->raiseError("NotImplementedError", "");
     return a.none();
 }
 
@@ -663,7 +663,7 @@ static value convertTextResult(cffi& a, const std::string& name, value result){
     }
     if (name == "readlines" && result.type == "list" && result.ptr){
         std::vector<value> items;
-        a.vm->materializeIterable(result, items);
+        a.vmPtr->materializeIterable(result, items);
         std::vector<value> out;
         for (auto& item : items){
             if (item.type == "bytes" && item.ptr)
@@ -679,22 +679,22 @@ static value convertTextResult(cffi& a, const std::string& name, value result){
 // FileIO: 基于内置 open 的文件对象
 static value fnFileIoCtor(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "FileIO() missing required argument 'file' (pos 1)");
+        a.vmPtr->raiseError("TypeError", "FileIO() missing required argument 'file' (pos 1)");
         return a.none();
     }
-    std::string path = a.vm->toString(a.arg(0));
+    std::string path = a.vmPtr->toString(a.arg(0));
     std::string mode = "r";
-    if (a.argc() > 1 && a.arg(1).type != "none") mode = a.vm->toString(a.arg(1));
+    if (a.argc() > 1 && a.arg(1).type != "none") mode = a.vmPtr->toString(a.arg(1));
     if (a.has_kwarg("mode") && a.kwarg("mode").type != "none")
-        mode = a.vm->toString(a.kwarg("mode"));
-    ffilib* builtins = a.vm->findCffiLibrary("builtins");
+        mode = a.vmPtr->toString(a.kwarg("mode"));
+    ffilib* builtins = a.vmPtr->findCffiLibrary("builtins");
     value fileObj = a.none();
     if (builtins){
         std::vector<value> args;
         args.push_back(a.mkstr(path));
         args.push_back(a.mkstr(mode));
         std::map<std::string, value> kwargs;
-        cffiCallFunction(*builtins, "open", *a.vm, args, fileObj, kwargs);
+        cffiCallFunction(*builtins, "open", *a.vmPtr, args, fileObj, kwargs);
     }
     if (fileObj.type != "native_object" || !fileObj.ptr) return a.none();
 
@@ -717,15 +717,15 @@ static value dataSeekEnd(cffi& a){ return a.mkint(2); }
 
 // io.open 复用内置 open
 static value fnIoOpen(cffi& a){
-    ffilib* builtins = a.vm->findCffiLibrary("builtins");
+    ffilib* builtins = a.vmPtr->findCffiLibrary("builtins");
     if (!builtins){
-        a.vm->raiseError("RuntimeError", "builtins module not available");
+        a.vmPtr->raiseError("RuntimeError", "builtins module not available");
         return a.none();
     }
     std::vector<value> args;
     for (size_t i = 0; i < a.argc(); ++i) args.push_back(a.arg(i));
     value result = a.none();
-    cffiCallFunction(*builtins, "open", *a.vm, args, result, a.kwargv);
+    cffiCallFunction(*builtins, "open", *a.vmPtr, args, result, a.kwargv);
     return result;
 }
 

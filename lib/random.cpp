@@ -26,7 +26,7 @@ std::mt19937_64 engine(
 std::vector<value> asSequence(cffi& a, size_t index){
     std::vector<value> items;
     if (index >= a.argc()) return items;
-    a.vm->materializeIterable(a.arg(index), items);
+    a.vmPtr->materializeIterable(a.arg(index), items);
     return items;
 }
 const double kPi = 3.14159265358979323846264338327950288;
@@ -150,7 +150,7 @@ static value fnRandint(cffi& a){
     long long low = a.arg_int(0);
     long long high = a.arg_int(1);
     if (low > high){
-        a.vm->raiseError("ValueError", "empty range for randrange()");
+        a.vmPtr->raiseError("ValueError", "empty range for randrange()");
         return a.none();
     }
     std::uniform_int_distribution<long long> dist(low, high);
@@ -172,19 +172,19 @@ static value fnRandrange(cffi& a){
         if (a.argc() >= 3) step = a.arg_int(2);
     }
     if (step == 0){
-        a.vm->raiseError("ValueError", "zero step for randrange()");
+        a.vmPtr->raiseError("ValueError", "zero step for randrange()");
         return a.none();
     }
     long long count = 0;
     if (step > 0){
         if (start >= stop){
-            a.vm->raiseError("ValueError", "empty range for randrange()");
+            a.vmPtr->raiseError("ValueError", "empty range for randrange()");
             return a.none();
         }
         count = (stop - start + step - 1) / step;
     } else {
         if (start <= stop){
-            a.vm->raiseError("ValueError", "empty range for randrange()");
+            a.vmPtr->raiseError("ValueError", "empty range for randrange()");
             return a.none();
         }
         count = (start - stop - step - 1) / (-step);
@@ -199,7 +199,7 @@ static value fnRandrange(cffi& a){
 static value fnChoice(cffi& a){
     std::vector<value> items = asSequence(a, 0);
     if (items.empty()){
-        a.vm->raiseError("IndexError", "Cannot choose from an empty sequence");
+        a.vmPtr->raiseError("IndexError", "Cannot choose from an empty sequence");
         return a.none();
     }
     std::uniform_int_distribution<size_t> dist(0, items.size() - 1);
@@ -213,7 +213,7 @@ static value fnChoices(cffi& a){
     std::vector<value> items = asSequence(a, 0);
     long long k = (a.argc() >= 2) ? a.arg_int(1) : 1;
     if (items.empty()){
-        a.vm->raiseError("IndexError", "Cannot choose from an empty sequence");
+        a.vmPtr->raiseError("IndexError", "Cannot choose from an empty sequence");
         return a.none();
     }
     std::vector<value> result;
@@ -228,8 +228,8 @@ static value fnChoices(cffi& a){
 static value fnShuffle(cffi& a){
     value val = a.arg(0);
     if (val.type != "list" || val.ptr == nullptr){
-        a.vm->raiseError("TypeError", "object of type '" +
-                                          a.vm->toString(a.mkstr(val.type)) +
+        a.vmPtr->raiseError("TypeError", "object of type '" +
+                                          a.vmPtr->toString(a.mkstr(val.type)) +
                                           "' has no len()");
         return a.none();
     }
@@ -245,7 +245,7 @@ static value fnSample(cffi& a){
     std::vector<value> items = asSequence(a, 0);
     long long k = a.arg_int(1);
     if (k < 0 || static_cast<size_t>(k) > items.size()){
-        a.vm->raiseError("ValueError", "Sample larger than population or is negative");
+        a.vmPtr->raiseError("ValueError", "Sample larger than population or is negative");
         return a.none();
     }
     std::shuffle(items.begin(), items.end(), engine);
@@ -259,7 +259,7 @@ static value fnSample(cffi& a){
 static value fnGetrandbits(cffi& a){
     long long k = a.arg_int(0);
     if (k < 0){
-        a.vm->raiseError("ValueError", "number of bits must be non-negative");
+        a.vmPtr->raiseError("ValueError", "number of bits must be non-negative");
         return a.none();
     }
     unsigned long long mask = (k >= 64) ? ~0ULL : ((1ULL << k) - 1);
@@ -272,7 +272,7 @@ static value fnGetrandbits(cffi& a){
 static value fnRandbytes(cffi& a){
     long long count = a.arg_int(0);
     if (count < 0){
-        a.vm->raiseError("ValueError", "number of bytes must be non-negative");
+        a.vmPtr->raiseError("ValueError", "number of bytes must be non-negative");
         return a.none();
     }
     std::uniform_int_distribution<int> dist(0, 255);
@@ -325,7 +325,7 @@ static value fnLognormvariate(cffi& a){
 static value fnExpovariate(cffi& a){
     double lambda = a.arg_float(0);
     if (lambda == 0.0){
-        a.vm->raiseError("ZeroDivisionError", "float division by zero");
+        a.vmPtr->raiseError("ZeroDivisionError", "float division by zero");
         return a.none();
     }
     double u = 1.0 - randomDouble();
@@ -339,7 +339,7 @@ static value fnBetavariate(cffi& a){
     double alpha = a.arg_float(0);
     double beta = a.arg_float(1);
     if (alpha <= 0.0 || beta <= 0.0){
-        a.vm->raiseError("ValueError", "gammavariate: alpha and beta must be > 0.0");
+        a.vmPtr->raiseError("ValueError", "gammavariate: alpha and beta must be > 0.0");
         return a.none();
     }
     double y = gammaValue(alpha, 1.0);
@@ -354,7 +354,7 @@ static value fnGammavariate(cffi& a){
     double alpha = a.arg_float(0);
     double beta = a.arg_float(1);
     if (alpha <= 0.0 || beta <= 0.0){
-        a.vm->raiseError("ValueError", "gammavariate: alpha and beta must be > 0.0");
+        a.vmPtr->raiseError("ValueError", "gammavariate: alpha and beta must be > 0.0");
         return a.none();
     }
     return a.mkfloat(gammaValue(alpha, beta));

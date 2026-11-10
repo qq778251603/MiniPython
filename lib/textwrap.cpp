@@ -14,7 +14,7 @@ namespace {
 std::string attrText(cffi& a, const std::string& name, const std::string& fallback){
     value v = a.attr(name);
     if (v.type == "none") return fallback;
-    return a.vm->toString(v);
+    return a.vmPtr->toString(v);
 }
 
 // 读取整型属性
@@ -23,7 +23,7 @@ std::string attrText(cffi& a, const std::string& name, const std::string& fallba
 long long attrInt(cffi& a, const std::string& name, long long fallback){
     value v = a.attr(name);
     if (v.type == "none") return fallback;
-    return a.vm->toInt(v);
+    return a.vmPtr->toInt(v);
 }
 
 // 读取布尔属性
@@ -32,7 +32,7 @@ long long attrInt(cffi& a, const std::string& name, long long fallback){
 bool attrBool(cffi& a, const std::string& name, bool fallback){
     value v = a.attr(name);
     if (v.type == "none") return fallback;
-    return a.vm->truthy(v);
+    return a.vmPtr->truthy(v);
 }
 
 // 空白字符判断
@@ -251,7 +251,7 @@ std::vector<std::string> wrapFromSelf(cffi& a, const std::string& text){
     long long maxLines = attrInt(a, "max_lines", 0);
     value placeholderValue = a.attr("placeholder");
     std::string placeholder = placeholderValue.type == "none" ? " [...]"
-                                                              : a.vm->toString(placeholderValue);
+                                                              : a.vmPtr->toString(placeholderValue);
     return wrapText(text, width, initial, subsequent, expand, replaceWhitespace,
                     breakLongWords, dropWhitespace, breakHyphens, tabsize,
                     maxLines, placeholder);
@@ -448,9 +448,9 @@ static value fnIndent(cffi& a){
             }
         } else {
             std::vector<value> args = {a.mkstr(content)};
-            value result = a.vm->callValue(predicate, args);
-            if (a.vm->hasError()) return a.none();
-            use = a.vm->truthy(result);
+            value result = a.vmPtr->callValue(predicate, args);
+            if (a.vmPtr->hasError()) return a.none();
+            use = a.vmPtr->truthy(result);
         }
         if (use) line = prefix + line;
     }

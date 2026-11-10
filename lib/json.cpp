@@ -188,9 +188,9 @@ bool dumpValue(minipy::vm& vm, const minipy::value& value, std::string& out, std
 struct JsonReader{
     const std::string& text;
     size_t pos = 0;
-    minipy::vm& vm;
+    minipy::vm& machine;
     std::string error;
-    JsonReader(const std::string& text, minipy::vm& machine) : text(text), vm(machine) {}
+    JsonReader(const std::string& text, minipy::vm& machine) : text(text), machine(machine) {}
 
 // skip Space
 // skip space
@@ -263,14 +263,14 @@ struct JsonReader{
         if (c == '"'){
             std::string value;
             if (!parseString(value)) return false;
-            out = vm.makeString(value);
+            out = machine.makeString(value);
             return true;
         }
         if (c == '['){
             pos++;
             std::vector<minipy::value> items;
             skipSpace();
-            if (pos < text.size() && text[pos] == ']'){ pos++; out = vm.makeList(items); return true; }
+            if (pos < text.size() && text[pos] == ']'){ pos++; out = machine.makeList(items); return true; }
             while (true){
                 minipy::value item;
                 if (!parseValue(item)) return false;
@@ -280,14 +280,14 @@ struct JsonReader{
                 if (pos < text.size() && text[pos] == ']'){ pos++; break; }
                 return fail("Expecting ',' delimiter");
             }
-            out = vm.makeList(items);
+            out = machine.makeList(items);
             return true;
         }
         if (c == '{'){
             pos++;
             minipy::dict_t pairs;
             skipSpace();
-            if (pos < text.size() && text[pos] == '}'){ pos++; out = vm.makeDict(pairs); return true; }
+            if (pos < text.size() && text[pos] == '}'){ pos++; out = machine.makeDict(pairs); return true; }
             while (true){
                 skipSpace();
                 std::string key;
@@ -297,18 +297,18 @@ struct JsonReader{
                 pos++;
                 minipy::value value;
                 if (!parseValue(value)) return false;
-                pairs.push_back({vm.makeString(key), value});
+                pairs.push_back({machine.makeString(key), value});
                 skipSpace();
                 if (pos < text.size() && text[pos] == ','){ pos++; continue; }
                 if (pos < text.size() && text[pos] == '}'){ pos++; break; }
                 return fail("Expecting ',' delimiter");
             }
-            out = vm.makeDict(pairs);
+            out = machine.makeDict(pairs);
             return true;
         }
-        if (text.compare(pos, 4, "true") == 0){ pos += 4; out = vm.makeBool(true); return true; }
-        if (text.compare(pos, 5, "false") == 0){ pos += 5; out = vm.makeBool(false); return true; }
-        if (text.compare(pos, 4, "null") == 0){ pos += 4; out = vm.makeNone(); return true; }
+        if (text.compare(pos, 4, "true") == 0){ pos += 4; out = machine.makeBool(true); return true; }
+        if (text.compare(pos, 5, "false") == 0){ pos += 5; out = machine.makeBool(false); return true; }
+        if (text.compare(pos, 4, "null") == 0){ pos += 4; out = machine.makeNone(); return true; }
         size_t begin = pos;
         if (text[pos] == '-') pos++;
         while (pos < text.size() &&
@@ -321,8 +321,8 @@ struct JsonReader{
                        number.find('e') != std::string::npos ||
                        number.find('E') != std::string::npos;
         try {
-            if (isFloat) out = vm.makeFloat(std::stod(number));
-            else out = vm.makeInt(std::stoll(number));
+            if (isFloat) out = machine.makeFloat(std::stod(number));
+            else out = machine.makeInt(std::stoll(number));
         } catch (...){
             return fail("Expecting value");
         }
@@ -336,7 +336,7 @@ struct JsonReader{
 // fn dumps
 // fn Dumps
 static minipy::value fnDumps(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     std::string out;
     std::string error;
     int indent = 0;
@@ -389,7 +389,7 @@ static minipy::value fnDumps(minipy::cffi& a){
 // fn loads
 // fn Loads
 static minipy::value fnLoads(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     std::string text = a.arg_str(0);
     JsonReader reader(text, vm);
     minipy::value value;

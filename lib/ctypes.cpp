@@ -403,7 +403,7 @@ bool ctypesCall(minipy::vm& vm, minipy::ffi_instance& self, const std::vector<mi
 // make loader
 // ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ Loader
 minipy::value makeLoader(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     auto* info = new CtypesHandle();
     info->kind = ctypes_loader;
     return vm.makeDynamicObject("LibraryLoader", info, ctypesGet, nullptr);
@@ -428,7 +428,7 @@ static minipy::value dataOledll(minipy::cffi& a){ return makeLoader(a); }
 // load library
 // ᠠᠶᠢᠯᠳᠠᠬᠤ Library
 minipy::value loadLibrary(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     if (a.argc() == 0){
         vm.raiseError("TypeError", "LoadLibrary() missing required argument: 'name'");
         return a.none();
@@ -477,7 +477,7 @@ static bool typeMarkerCall(minipy::vm& vm, minipy::ffi_instance& self,
 // make type marker
 // ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ ᠲᠥᠷᠥᠯ Marker
 minipy::value makeTypeMarker(minipy::cffi& a, const std::string& name){
-    return a.vm->makeDynamicObject(name, nullptr, nullptr, typeMarkerCall);
+    return a.vmPtr->makeDynamicObject(name, nullptr, nullptr, typeMarkerCall);
 }
 
 // data C Double
@@ -611,7 +611,7 @@ static minipy::value fnByref(minipy::cffi& a){
 // wintypes info
 // Wintypes Info
 struct WintypesInfo{
-    minipy::vm* vm = nullptr;
+    minipy::vm* vmPtr = nullptr;
 };
 
 // wintypes 获取
@@ -628,9 +628,9 @@ static bool wintypesGet(minipy::vm& vm, void* handle, const std::string& name, m
 // data wintypes
 // data Wintypes
 static minipy::value dataWintypes(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     auto* info = new WintypesInfo();
-    info->vm = &vm;
+    info->vmPtr = &vm;
     return vm.makeDynamicObject("wintypes", info, wintypesGet, nullptr);
 }
 
@@ -708,7 +708,7 @@ static void computeStructLayout(CtypesStructInfo* info){
 // fn structure
 // fn Structure
 static minipy::value fnStructure(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     auto* info = new CtypesStructInfo();
 
     info->totalSize = 4096;
@@ -808,7 +808,7 @@ static bool stringBufferGet(minipy::vm& vm, void* h, const std::string& name, mi
 // fn create unicode buffer
 // fn ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ Unicode ᠪᠣᠯᠣᠭᠤᠨ᠎ᠠ
 static minipy::value fnCreateUnicodeBuffer(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     size_t count = 0;
     std::string init;
     if (a.argc() >= 1){
@@ -838,7 +838,7 @@ static minipy::value fnCreateUnicodeBuffer(minipy::cffi& a){
 // fn create string buffer
 // fn ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ ᠦᠰᠦᠭ ᠪᠣᠯᠣᠭᠤᠨ᠎ᠠ
 static minipy::value fnCreateStringBuffer(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     size_t count = 0;
     std::string init;
     if (a.argc() >= 1){
@@ -866,7 +866,7 @@ static minipy::value fnCreateStringBuffer(minipy::cffi& a){
 // fn Addressof
 static minipy::value fnAddressof(minipy::cffi& a){
     if (a.argc() == 0) return a.none();
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     minipy::value arg = a.arg(0);
     if (arg.type == "native_object" && arg.ptr){
         auto* inst = static_cast<minipy::ffi_instance*>(arg.ptr);
@@ -918,7 +918,7 @@ struct CtypesCallbackContext{
     // Stack bytes per argument; long long occupies 8 bytes (two slots) on x86-32
     // ᠴᠠᠭᠠᠨ ᠤ ᠡᠵᠡᠯᠡᠬᠦ ᠪᠠᠢᠲᠤ ᠬᠡᠮᠵᠢᠶ᠎ᠡ
     int argSizes[16] = {0};
-    minipy::vm* vm = nullptr;
+    minipy::vm* vmPtr = nullptr;
     minipy::function_t* function = nullptr;
     std::string pythonFuncName;
     void* trampolineCode = nullptr;
@@ -931,7 +931,7 @@ struct CtypesCallbackContext{
 // ctypes c func type stub
 // ctypes C Func ᠲᠥᠷᠥᠯ Stub
 struct CtypesCFuncTypeStub{
-    minipy::vm* vm = nullptr;
+    minipy::vm* vmPtr = nullptr;
     std::vector<std::string> argTypes;
 };
 
@@ -941,8 +941,8 @@ struct CtypesCFuncTypeStub{
 // ctypes callback dispatcher
 // ctypes Callback Dispatcher
 extern "C" long long ctypesCallbackDispatcher(CtypesCallbackContext* ctx){
-    if (!ctx || !ctx->vm || !ctx->function) return 0;
-    minipy::vm& vm = *ctx->vm;
+    if (!ctx || !ctx->vmPtr || !ctx->function) return 0;
+    minipy::vm& vm = *ctx->vmPtr;
 
     minipy::vm::ErrorSnapshot saved = vm.saveErrorState();
     std::vector<minipy::value> args;
@@ -1192,9 +1192,9 @@ static void* makeTrampoline(CtypesCallbackContext* ctx, const void* dispatcherFu
 // fn c f u n c t y p e
 // fn C F U N C T Y P E
 static minipy::value fnCFUNCTYPE(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     auto* info = new CtypesCFuncTypeStub();
-    info->vm = &vm;
+    info->vmPtr = &vm;
     for (size_t i = 0; i < a.argc(); ++i){
         minipy::value arg = a.arg(i);
         if (arg.type == "native_object" && arg.ptr){
@@ -1227,7 +1227,7 @@ static bool cfuncTypeStubCall(minipy::vm& vm, minipy::ffi_instance& self,
     }
     auto* func = static_cast<minipy::function_t*>(funcVal.ptr);
     auto* ctx = new CtypesCallbackContext();
-    ctx->vm = &vm;
+    ctx->vmPtr = &vm;
     ctx->function = func;
     ctx->pythonFuncName = func->name;
     ctx->argCount = static_cast<int>(stub->argTypes.size()) - 1;

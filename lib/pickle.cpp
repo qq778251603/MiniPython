@@ -1,4 +1,4 @@
-﻿#include "../cffi.hpp"
+#include "../cffi.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -1172,10 +1172,10 @@ static bool resolveProtocol(cffi& a, int index, int& proto){
         proto = 5;
         return true;
     }
-    long long p = a.vm->toInt(v);
+    long long p = a.vmPtr->toInt(v);
     if (p < 0) p = 5;
     if (p > 5){
-        a.vm->raiseError("ValueError", "pickle protocol must be <= 5");
+        a.vmPtr->raiseError("ValueError", "pickle protocol must be <= 5");
         return false;
     }
     proto = static_cast<int>(p);
@@ -1186,10 +1186,10 @@ static bool resolveProtocol(cffi& a, int index, int& proto){
 // core of dumps
 // dumps ᠦᠨᠳᠡᠰᠦ
 static value dumpsCore(cffi& a, const value& obj, int proto){
-    PickleWriter w{a.vm, proto, "", {}, "", ""};
+    PickleWriter w{a.vmPtr, proto, "", {}, "", ""};
     w.save(obj);
     if (!w.errType.empty()){
-        a.vm->raiseError(w.errType, w.errMsg);
+        a.vmPtr->raiseError(w.errType, w.errMsg);
         return a.none();
     }
     w.body.push_back('.');
@@ -1212,10 +1212,10 @@ static value dumpsCore(cffi& a, const value& obj, int proto){
 // core of loads
 // loads ᠦᠨᠳᠡᠰᠦ
 static value loadsCore(cffi& a, const std::string& raw){
-    PickleReader r{a.vm, raw, 0, {}, {}, "", ""};
+    PickleReader r{a.vmPtr, raw, 0, {}, {}, "", ""};
     value result = r.load();
     if (!r.errType.empty()){
-        a.vm->raiseError(r.errType, r.errMsg);
+        a.vmPtr->raiseError(r.errType, r.errMsg);
         return a.none();
     }
     return result;
@@ -1246,20 +1246,20 @@ value fnPickleDump(cffi& a){
         if (!resolveProtocol(a, 2, proto)) return a.none();
     }
     value bytes = dumpsCore(a, a.arg(0), proto);
-    if (a.vm->hasError()) return a.none();
-    value writeFn = a.vm->getAttribute(a.arg(1), "write");
-    if (writeFn.type == "none" || a.vm->hasError()) return a.none();
-    a.vm->callValue(writeFn, {bytes});
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
+    value writeFn = a.vmPtr->getAttribute(a.arg(1), "write");
+    if (writeFn.type == "none" || a.vmPtr->hasError()) return a.none();
+    a.vmPtr->callValue(writeFn, {bytes});
+    if (a.vmPtr->hasError()) return a.none();
     return a.none();
 }
 
 // load
 value fnPickleLoad(cffi& a){
-    value readFn = a.vm->getAttribute(a.arg(0), "read");
-    if (readFn.type == "none" || a.vm->hasError()) return a.none();
-    value result = a.vm->callValue(readFn, {});
-    if (a.vm->hasError()) return a.none();
+    value readFn = a.vmPtr->getAttribute(a.arg(0), "read");
+    if (readFn.type == "none" || a.vmPtr->hasError()) return a.none();
+    value result = a.vmPtr->callValue(readFn, {});
+    if (a.vmPtr->hasError()) return a.none();
     return loadsCore(a, rawOf(result));
 }
 
@@ -1285,12 +1285,12 @@ value picklerDump(cffi& a){
     value self = a.self();
     value file = a.attr(self, "file");
     value proto = a.attr(self, "protocol");
-    value bytes = dumpsCore(a, a.arg(0), static_cast<int>(a.vm->toInt(proto)));
-    if (a.vm->hasError()) return a.none();
-    value writeFn = a.vm->getAttribute(file, "write");
-    if (writeFn.type == "none" || a.vm->hasError()) return a.none();
-    a.vm->callValue(writeFn, {bytes});
-    if (a.vm->hasError()) return a.none();
+    value bytes = dumpsCore(a, a.arg(0), static_cast<int>(a.vmPtr->toInt(proto)));
+    if (a.vmPtr->hasError()) return a.none();
+    value writeFn = a.vmPtr->getAttribute(file, "write");
+    if (writeFn.type == "none" || a.vmPtr->hasError()) return a.none();
+    a.vmPtr->callValue(writeFn, {bytes});
+    if (a.vmPtr->hasError()) return a.none();
     return a.none();
 }
 
@@ -1308,10 +1308,10 @@ value unpicklerCtor(cffi& a){
 value unpicklerLoad(cffi& a){
     value self = a.self();
     value file = a.attr(self, "file");
-    value readFn = a.vm->getAttribute(file, "read");
-    if (readFn.type == "none" || a.vm->hasError()) return a.none();
-    value result = a.vm->callValue(readFn, {});
-    if (a.vm->hasError()) return a.none();
+    value readFn = a.vmPtr->getAttribute(file, "read");
+    if (readFn.type == "none" || a.vmPtr->hasError()) return a.none();
+    value result = a.vmPtr->callValue(readFn, {});
+    if (a.vmPtr->hasError()) return a.none();
     return loadsCore(a, rawOf(result));
 }
 

@@ -679,25 +679,25 @@ bool TomlParser::parseValue(value& out){
 // loads
 static value fnTomlLoads(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "loads() missing required argument: 's'");
+        a.vmPtr->raiseError("TypeError", "loads() missing required argument: 's'");
         return a.none();
     }
     TomlParser parser;
-    parser.vmPtr = a.vm;
+    parser.vmPtr = a.vmPtr;
     value input = a.arg(0);
     if (input.type == "str" && input.ptr){
         parser.text = *static_cast<std::string*>(input.ptr);
     } else if (input.type == "bytes"){
-        a.vm->raiseError("TypeError", "Expected str object, not 'bytes'");
+        a.vmPtr->raiseError("TypeError", "Expected str object, not 'bytes'");
         return a.none();
     } else {
-        a.vm->raiseError("TypeError", "Expected str object, not '" +
-                                      a.vm->pythonTypeName(input) + "'");
+        a.vmPtr->raiseError("TypeError", "Expected str object, not '" +
+                                      a.vmPtr->pythonTypeName(input) + "'");
         return a.none();
     }
     value root;
     if (!parser.parseDocument(root)){
-        a.vm->raiseError("TOMLDecodeError", parser.error);
+        a.vmPtr->raiseError("TOMLDecodeError", parser.error);
         return a.none();
     }
     return root;
@@ -708,24 +708,24 @@ static value fnTomlLoads(cffi& a){
 // load
 static value fnTomlLoad(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "load() missing required argument: 'fp'");
+        a.vmPtr->raiseError("TypeError", "load() missing required argument: 'fp'");
         return a.none();
     }
     value result;
-    if (!cffiCallMethod(*a.vm, a.arg(0), "read", {}, result)){
-        a.vm->raiseError("TypeError", "File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`");
+    if (!cffiCallMethod(*a.vmPtr, a.arg(0), "read", {}, result)){
+        a.vmPtr->raiseError("TypeError", "File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`");
         return a.none();
     }
     if (result.type != "str" && result.type != "bytes"){
-        a.vm->raiseError("TypeError", "File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`");
+        a.vmPtr->raiseError("TypeError", "File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`");
         return a.none();
     }
     TomlParser parser;
-    parser.vmPtr = a.vm;
+    parser.vmPtr = a.vmPtr;
     parser.text = *static_cast<std::string*>(result.ptr);
     value root;
     if (!parser.parseDocument(root)){
-        a.vm->raiseError("TOMLDecodeError", parser.error);
+        a.vmPtr->raiseError("TOMLDecodeError", parser.error);
         return a.none();
     }
     return root;

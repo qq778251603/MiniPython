@@ -49,9 +49,9 @@ void insertItem(cffi& a, QueueState* s, const value& item){
     if (s->kind == kPriority){
         size_t pos = s->items.size();
         while (pos > 0){
-            value less = a.vm->applyBinary("<", item, s->items[pos - 1]);
-            if (a.vm->hasError()) return;
-            if (!a.vm->truthy(less)) break;
+            value less = a.vmPtr->applyBinary("<", item, s->items[pos - 1]);
+            if (a.vmPtr->hasError()) return;
+            if (!a.vmPtr->truthy(less)) break;
             --pos;
         }
         s->items.insert(s->items.begin() + static_cast<long>(pos), item);
@@ -107,15 +107,15 @@ static value fnPut(cffi& a){
     if (s->kind != kSimple && s->maxsize > 0 &&
         static_cast<long long>(s->items.size()) >= s->maxsize){
         if (!block){
-            a.vm->raiseError("Full", "queue.Full");
+            a.vmPtr->raiseError("Full", "queue.Full");
             return a.none();
         }
         // 无线程模型: 无法真正等待, 直接报满
-        a.vm->raiseError("Full", "queue.Full");
+        a.vmPtr->raiseError("Full", "queue.Full");
         return a.none();
     }
     insertItem(a, s, item);
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
     ++s->unfinished;
     syncAttrs(a, s, a.self());
     return a.none();
@@ -129,11 +129,11 @@ static value fnPutNowait(cffi& a){
     if (!s) return a.none();
     if (s->kind != kSimple && s->maxsize > 0 &&
         static_cast<long long>(s->items.size()) >= s->maxsize){
-        a.vm->raiseError("Full", "queue.Full");
+        a.vmPtr->raiseError("Full", "queue.Full");
         return a.none();
     }
     insertItem(a, s, a.arg(0));
-    if (a.vm->hasError()) return a.none();
+    if (a.vmPtr->hasError()) return a.none();
     ++s->unfinished;
     syncAttrs(a, s, a.self());
     return a.none();
@@ -146,7 +146,7 @@ static value fnGet(cffi& a){
     QueueState* s = queueState(a);
     if (!s) return a.none();
     if (s->items.empty()){
-        a.vm->raiseError("Empty", "queue.Empty");
+        a.vmPtr->raiseError("Empty", "queue.Empty");
         return a.none();
     }
     value item = popItem(s);
@@ -195,7 +195,7 @@ static value fnTaskDone(cffi& a){
     QueueState* s = queueState(a);
     if (!s) return a.none();
     if (s->unfinished <= 0){
-        a.vm->raiseError("ValueError", "task_done() called too many times");
+        a.vmPtr->raiseError("ValueError", "task_done() called too many times");
         return a.none();
     }
     --s->unfinished;

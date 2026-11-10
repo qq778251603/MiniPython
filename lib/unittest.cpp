@@ -14,14 +14,14 @@ namespace {
 // Safe repr for assert messages
 // ᠠᠶᠤᠯ ᠦᠭᠡᠢ repr
 std::string srepr(cffi& a, const value& v){
-    return pythonRepr(*a.vm, v);
+    return pythonRepr(*a.vmPtr, v);
 }
 
 // 断言失败: 抛 AssertionError
 // Assertion failure: raise AssertionError
 // ᠠᠯᠳᠠᠭ᠎ᠠ ᠭᠠᠷᠭᠠᠬᠤ
 value failWith(cffi& a, const std::string& text){
-    a.vm->raiseError("AssertionError", text);
+    a.vmPtr->raiseError("AssertionError", text);
     return a.none();
 }
 
@@ -30,7 +30,7 @@ value failWith(cffi& a, const std::string& text){
 // msg ᠠᠷᠭᠤᠮᠡᠨᠲ ᠢ ᠳᠠᠪᠬᠤᠷᠬᠤ
 std::string pickMsg(cffi& a, const std::string& fallback, size_t index){
     if (a.argc() > index && a.arg(index).type != "none"){
-        return a.vm->toString(a.arg(index));
+        return a.vmPtr->toString(a.arg(index));
     }
     return fallback;
 }
@@ -55,14 +55,14 @@ std::string className(cffi& a, const value& cls){
         out += ")";
         return out;
     }
-    return a.vm->toString(cls);
+    return a.vmPtr->toString(cls);
 }
 
 // 对象类型名
 // Object type name
 // ᠣᠪᠶᠡᠺᠲ ᠦᠨ ᠲᠥᠷᠥᠯ ᠨᠡᠷ᠎ᠡ
 std::string typeNameOf(cffi& a, const value& v){
-    return a.vm->pythonTypeName(v);
+    return a.vmPtr->pythonTypeName(v);
 }
 
 bool isInstanceOf(cffi& a, const value& obj, const value& cls){
@@ -98,15 +98,15 @@ value tcRun(cffi& a){
     bool haveResult = result.type == "native_object" && result.ptr;
     if (haveResult){
         value r;
-        cffiCallMethod(*a.vm, result, "startTest", {a.self()}, r);
+        cffiCallMethod(*a.vmPtr, result, "startTest", {a.self()}, r);
     }
     // runTest 默认成功
     // Default runTest succeeds
     // ᠠᠩᠬᠠᠨ runTest ᠠᠮᠵᠢᠯᠲᠠ
     if (haveResult){
         value r;
-        cffiCallMethod(*a.vm, result, "addSuccess", {a.self()}, r);
-        cffiCallMethod(*a.vm, result, "stopTest", {a.self()}, r);
+        cffiCallMethod(*a.vmPtr, result, "addSuccess", {a.self()}, r);
+        cffiCallMethod(*a.vmPtr, result, "stopTest", {a.self()}, r);
     }
     return result;
 }
@@ -114,7 +114,7 @@ value tcRun(cffi& a){
 value tcDebug(cffi& a){ return a.none(); }
 
 value tcAssertEqual(cffi& a){
-    if (!a.vm->valuesEqual(a.arg(0), a.arg(1))){
+    if (!a.vmPtr->valuesEqual(a.arg(0), a.arg(1))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " != " + srepr(a, a.arg(1)), 2));
     }
@@ -122,7 +122,7 @@ value tcAssertEqual(cffi& a){
 }
 
 value tcAssertNotEqual(cffi& a){
-    if (a.vm->valuesEqual(a.arg(0), a.arg(1))){
+    if (a.vmPtr->valuesEqual(a.arg(0), a.arg(1))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " == " + srepr(a, a.arg(1)), 2));
     }
@@ -130,7 +130,7 @@ value tcAssertNotEqual(cffi& a){
 }
 
 value tcAssertTrue(cffi& a){
-    if (!a.vm->truthy(a.arg(0))){
+    if (!a.vmPtr->truthy(a.arg(0))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " is not true", 1));
     }
@@ -138,7 +138,7 @@ value tcAssertTrue(cffi& a){
 }
 
 value tcAssertFalse(cffi& a){
-    if (a.vm->truthy(a.arg(0))){
+    if (a.vmPtr->truthy(a.arg(0))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " is not false", 1));
     }
@@ -184,14 +184,14 @@ value tcAssertIn(cffi& a){
     if ((container.type == "list" || container.type == "tuple") && container.ptr){
         auto* items = static_cast<std::vector<value>*>(container.ptr);
         for (auto& item : *items){
-            if (a.vm->valuesEqual(member, item)){ found = true; break; }
+            if (a.vmPtr->valuesEqual(member, item)){ found = true; break; }
         }
     } else if (container.type == "str" && member.type == "str"){
-        found = a.vm->toString(container).find(a.vm->toString(member)) != std::string::npos;
+        found = a.vmPtr->toString(container).find(a.vmPtr->toString(member)) != std::string::npos;
     } else if (container.type == "dict" && container.ptr){
         auto* items = static_cast<dict_t*>(container.ptr);
         for (auto& kv : *items){
-            if (a.vm->valuesEqual(member, kv.first)){ found = true; break; }
+            if (a.vmPtr->valuesEqual(member, kv.first)){ found = true; break; }
         }
     }
     if (!found){
@@ -207,10 +207,10 @@ value tcAssertNotIn(cffi& a){
     if ((container.type == "list" || container.type == "tuple") && container.ptr){
         auto* items = static_cast<std::vector<value>*>(container.ptr);
         for (auto& item : *items){
-            if (a.vm->valuesEqual(member, item)){ found = true; break; }
+            if (a.vmPtr->valuesEqual(member, item)){ found = true; break; }
         }
     } else if (container.type == "str" && member.type == "str"){
-        found = a.vm->toString(container).find(a.vm->toString(member)) != std::string::npos;
+        found = a.vmPtr->toString(container).find(a.vmPtr->toString(member)) != std::string::npos;
     }
     if (found){
         return failWith(a, pickMsg(a,
@@ -238,16 +238,16 @@ value tcAssertNotIsInstance(cffi& a){
 }
 
 value tcAssertAlmostEqual(cffi& a){
-    double x = a.vm->toFloat(a.arg(0));
-    double y = a.vm->toFloat(a.arg(1));
+    double x = a.vmPtr->toFloat(a.arg(0));
+    double y = a.vmPtr->toFloat(a.arg(1));
     int places = 7;
     if (a.has_kwarg("places")) places = static_cast<int>(a.kwarg_int("places", 7));
-    else if (a.argc() > 2 && a.arg(2).type == "int") places = static_cast<int>(a.vm->toInt(a.arg(2)));
+    else if (a.argc() > 2 && a.arg(2).type == "int") places = static_cast<int>(a.vmPtr->toInt(a.arg(2)));
     if (a.has_kwarg("delta")){
-        double delta = a.vm->toFloat(a.kwarg("delta"));
+        double delta = a.vmPtr->toFloat(a.kwarg("delta"));
         if (std::fabs(x - y) > delta){
             return failWith(a, srepr(a, a.arg(0)) + " != " + srepr(a, a.arg(1)) +
-                               " within " + a.vm->toString(a.kwarg("delta")) + " delta");
+                               " within " + a.vmPtr->toString(a.kwarg("delta")) + " delta");
         }
         return a.none();
     }
@@ -261,7 +261,7 @@ value tcAssertAlmostEqual(cffi& a){
 }
 
 value tcAssertGreater(cffi& a){
-    if (!(a.vm->toFloat(a.arg(0)) > a.vm->toFloat(a.arg(1)))){
+    if (!(a.vmPtr->toFloat(a.arg(0)) > a.vmPtr->toFloat(a.arg(1)))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " not greater than " + srepr(a, a.arg(1)), 2));
     }
@@ -269,7 +269,7 @@ value tcAssertGreater(cffi& a){
 }
 
 value tcAssertGreaterEqual(cffi& a){
-    if (!(a.vm->toFloat(a.arg(0)) >= a.vm->toFloat(a.arg(1)))){
+    if (!(a.vmPtr->toFloat(a.arg(0)) >= a.vmPtr->toFloat(a.arg(1)))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " not greater than or equal to " + srepr(a, a.arg(1)), 2));
     }
@@ -277,7 +277,7 @@ value tcAssertGreaterEqual(cffi& a){
 }
 
 value tcAssertLess(cffi& a){
-    if (!(a.vm->toFloat(a.arg(0)) < a.vm->toFloat(a.arg(1)))){
+    if (!(a.vmPtr->toFloat(a.arg(0)) < a.vmPtr->toFloat(a.arg(1)))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " not less than " + srepr(a, a.arg(1)), 2));
     }
@@ -285,7 +285,7 @@ value tcAssertLess(cffi& a){
 }
 
 value tcAssertLessEqual(cffi& a){
-    if (!(a.vm->toFloat(a.arg(0)) <= a.vm->toFloat(a.arg(1)))){
+    if (!(a.vmPtr->toFloat(a.arg(0)) <= a.vmPtr->toFloat(a.arg(1)))){
         return failWith(a, pickMsg(a,
             srepr(a, a.arg(0)) + " not less than or equal to " + srepr(a, a.arg(1)), 2));
     }
@@ -301,12 +301,12 @@ value tcAssertRaises(cffi& a){
     std::vector<value> innerArgs;
     for (size_t i = 2; i < a.argc(); ++i) innerArgs.push_back(a.arg(i));
     std::string wantName = className(a, excClass);
-    auto snap = a.vm->saveErrorState();
-    value result = a.vm->callValue(callable, innerArgs);
-    if (a.vm->hasError()){
-        std::string got = a.vm->exceptionType();
+    auto snap = a.vmPtr->saveErrorState();
+    value result = a.vmPtr->callValue(callable, innerArgs);
+    if (a.vmPtr->hasError()){
+        std::string got = a.vmPtr->exceptionType();
         if (got == wantName){
-            a.vm->clearErr();
+            a.vmPtr->clearErr();
             return a.none();
         }
         // 类型不匹配: 异常继续传播 (CPython 行为)
@@ -326,22 +326,22 @@ value tcAssertRaises(cffi& a){
         auto* ci = static_cast<ffi_instance*>(callable.ptr);
         callName = ci->typeName;
     }
-    if (callName.empty()) callName = a.vm->toString(callable);
+    if (callName.empty()) callName = a.vmPtr->toString(callable);
     return failWith(a, wantName + " not raised by " + callName);
 }
 
 value tcFail(cffi& a){
-    return failWith(a, a.argc() > 0 ? a.vm->toString(a.arg(0)) : "AssertionError");
+    return failWith(a, a.argc() > 0 ? a.vmPtr->toString(a.arg(0)) : "AssertionError");
 }
 
 value tcShortDescription(cffi& a){ return a.none(); }
 
 value tcId(cffi& a){
-    return a.mkstr("unittest.TestCase." + a.vm->toString(a.attr("_methodName")));
+    return a.mkstr("unittest.TestCase." + a.vmPtr->toString(a.attr("_methodName")));
 }
 
 value tcStr(cffi& a){
-    return a.mkstr(a.vm->toString(a.attr("_methodName")) + " (unittest.TestCase)");
+    return a.mkstr(a.vmPtr->toString(a.attr("_methodName")) + " (unittest.TestCase)");
 }
 
 // ---- FunctionTestCase / FunctionTestCase / FunctionTestCase ----
@@ -360,34 +360,34 @@ value ftcRun(cffi& a){
     bool haveResult = result.type == "native_object" && result.ptr;
     if (haveResult){
         value r;
-        cffiCallMethod(*a.vm, result, "startTest", {a.self()}, r);
+        cffiCallMethod(*a.vmPtr, result, "startTest", {a.self()}, r);
     }
     value func = a.attr("_func");
-    value callResult = a.vm->callValue(func, {});
-    if (a.vm->hasError()){
-        std::string type = a.vm->exceptionType();
-        std::string msg = a.vm->getLastErr();
-        a.vm->clearErr();
+    value callResult = a.vmPtr->callValue(func, {});
+    if (a.vmPtr->hasError()){
+        std::string type = a.vmPtr->exceptionType();
+        std::string msg = a.vmPtr->getLastErr();
+        a.vmPtr->clearErr();
         if (haveResult){
             value r;
             if (type == "AssertionError"){
                 value err = a.mkstr(type + ": " + msg);
-                cffiCallMethod(*a.vm, result, "addFailure", {a.self(), err}, r);
+                cffiCallMethod(*a.vmPtr, result, "addFailure", {a.self(), err}, r);
             } else {
                 value err = a.mkstr(type + ": " + msg);
-                cffiCallMethod(*a.vm, result, "addError", {a.self(), err}, r);
+                cffiCallMethod(*a.vmPtr, result, "addError", {a.self(), err}, r);
             }
         }
     } else {
         (void)callResult;
         if (haveResult){
             value r;
-            cffiCallMethod(*a.vm, result, "addSuccess", {a.self()}, r);
+            cffiCallMethod(*a.vmPtr, result, "addSuccess", {a.self()}, r);
         }
     }
     if (haveResult){
         value r;
-        cffiCallMethod(*a.vm, result, "stopTest", {a.self()}, r);
+        cffiCallMethod(*a.vmPtr, result, "stopTest", {a.self()}, r);
     }
     return result;
 }
@@ -436,8 +436,8 @@ value suiteRun(cffi& a){
     for (auto& test : *suiteTests(a.self())){
         if (test.type == "native_object" && test.ptr){
             value r;
-            cffiCallMethod(*a.vm, test, "run", {result}, r);
-            if (a.vm->hasError()) return a.none();
+            cffiCallMethod(*a.vmPtr, test, "run", {result}, r);
+            if (a.vmPtr->hasError()) return a.none();
         }
     }
     return result;
@@ -503,21 +503,21 @@ value resultAddSuccess(cffi& a){
 
 value resultAddFailure(cffi& a){
     std::vector<value> pair{a.arg(0), a.argc() > 1 ? a.arg(1) : a.mkstr("")};
-    resultData(a.self())->failures.push_back(a.vm->makeTuple(pair));
+    resultData(a.self())->failures.push_back(a.vmPtr->makeTuple(pair));
     syncResultAttrs(a, a.self());
     return a.none();
 }
 
 value resultAddError(cffi& a){
     std::vector<value> pair{a.arg(0), a.argc() > 1 ? a.arg(1) : a.mkstr("")};
-    resultData(a.self())->errors.push_back(a.vm->makeTuple(pair));
+    resultData(a.self())->errors.push_back(a.vmPtr->makeTuple(pair));
     syncResultAttrs(a, a.self());
     return a.none();
 }
 
 value resultAddSkip(cffi& a){
     std::vector<value> pair{a.arg(0), a.argc() > 1 ? a.arg(1) : a.mkstr("")};
-    resultData(a.self())->skipped.push_back(a.vm->makeTuple(pair));
+    resultData(a.self())->skipped.push_back(a.vmPtr->makeTuple(pair));
     syncResultAttrs(a, a.self());
     return a.none();
 }
@@ -540,7 +540,7 @@ value resultPrintErrors(cffi& a){ return a.none(); }
 value runnerCtor(cffi& a){
     int verbosity = 1;
     if (a.has_kwarg("verbosity")) verbosity = static_cast<int>(a.kwarg_int("verbosity", 1));
-    else if (a.argc() > 1 && a.arg(1).type == "int") verbosity = static_cast<int>(a.vm->toInt(a.arg(1)));
+    else if (a.argc() > 1 && a.arg(1).type == "int") verbosity = static_cast<int>(a.vmPtr->toInt(a.arg(1)));
     value obj = a.mkobject(nullptr);
     auto* inst = static_cast<ffi_instance*>(obj.ptr);
     inst->attributes["verbosity"] = a.mkint(verbosity);
@@ -552,15 +552,15 @@ value runnerRun(cffi& a){
     int verbosity = 1;
     {
         value v = a.attr("verbosity");
-        if (v.type == "int") verbosity = static_cast<int>(a.vm->toInt(v));
+        if (v.type == "int") verbosity = static_cast<int>(a.vmPtr->toInt(v));
     }
     auto& classes = a.library->classes;
-    value result = a.vm->makeNativeObject(a.library, &classes.at("TestResult"), new ResultData());
+    value result = a.vmPtr->makeNativeObject(a.library, &classes.at("TestResult"), new ResultData());
     syncResultAttrs(a, result);
 
     auto start = std::chrono::steady_clock::now();
     value r;
-    cffiCallMethod(*a.vm, suite, "run", {result}, r);
+    cffiCallMethod(*a.vmPtr, suite, "run", {result}, r);
     auto end = std::chrono::steady_clock::now();
     double elapsed = std::chrono::duration<double>(end - start).count();
     if (elapsed < 0.0005) elapsed = 0.0;
@@ -583,7 +583,7 @@ value runnerRun(cffi& a){
             std::string err;
             if (item.type == "tuple" && item.ptr){
                 auto* pair = static_cast<std::vector<value>*>(item.ptr);
-                if (pair->size() > 1) err = a.vm->toString((*pair)[1]);
+                if (pair->size() > 1) err = a.vmPtr->toString((*pair)[1]);
             }
             std::cerr << "======================================================================\n";
             std::cerr << label << ": runTest (unittest.TestCase)\n";

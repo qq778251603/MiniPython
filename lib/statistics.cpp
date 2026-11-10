@@ -17,9 +17,9 @@ namespace {
 // as Numbers
 std::vector<double> asNumbers(cffi& a, size_t index){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(index), items);
+    a.vmPtr->materializeIterable(a.arg(index), items);
     std::vector<double> numbers;
-    for (auto& item : items) numbers.push_back(a.vm->toFloat(item));
+    for (auto& item : items) numbers.push_back(a.vmPtr->toFloat(item));
     return numbers;
 }
 
@@ -28,7 +28,7 @@ std::vector<double> asNumbers(cffi& a, size_t index){
 // require Data
 bool requireData(cffi& a, const std::vector<double>& numbers){
     if (numbers.empty()){
-        a.vm->raiseError("statistics.StatisticsError", "no data");
+        a.vmPtr->raiseError("statistics.StatisticsError", "no data");
         return false;
     }
     return true;
@@ -102,9 +102,9 @@ static value fnMedianHigh(cffi& a){
 // fn Mode
 static value fnMode(cffi& a){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     if (items.empty()){
-        a.vm->raiseError("statistics.StatisticsError", "no mode for empty data");
+        a.vmPtr->raiseError("statistics.StatisticsError", "no mode for empty data");
         return a.none();
     }
     value best = items[0];
@@ -112,7 +112,7 @@ static value fnMode(cffi& a){
     for (auto& candidate : items){
         size_t count = 0;
         for (auto& item : items){
-            if (a.vm->valuesEqual(candidate, item)) count++;
+            if (a.vmPtr->valuesEqual(candidate, item)) count++;
         }
         if (count > bestCount){
             bestCount = count;
@@ -127,9 +127,9 @@ static value fnMode(cffi& a){
 // fn Multimode
 static value fnMultimode(cffi& a){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     if (items.empty()){
-        a.vm->raiseError("statistics.StatisticsError", "no mode for empty data");
+        a.vmPtr->raiseError("statistics.StatisticsError", "no mode for empty data");
         return a.none();
     }
     size_t bestCount = 0;
@@ -137,10 +137,10 @@ static value fnMultimode(cffi& a){
     for (auto& candidate : items){
         size_t count = 0;
         for (auto& item : items){
-            if (a.vm->valuesEqual(candidate, item)) count++;
+            if (a.vmPtr->valuesEqual(candidate, item)) count++;
         }
         bool exists = false;
-        for (auto& item : result) if (a.vm->valuesEqual(item, candidate)) exists = true;
+        for (auto& item : result) if (a.vmPtr->valuesEqual(item, candidate)) exists = true;
         if (count > bestCount){
             bestCount = count;
             result.clear();
@@ -167,7 +167,7 @@ static value fnPstdev(cffi& a){
 static value fnStdev(cffi& a){
     std::vector<double> numbers = asNumbers(a, 0);
     if (numbers.size() < 2){
-        a.vm->raiseError("statistics.StatisticsError", "stdev requires at least two data points");
+        a.vmPtr->raiseError("statistics.StatisticsError", "stdev requires at least two data points");
         return a.none();
     }
     return a.mkfloat(std::sqrt(varianceOf(numbers, true)));
@@ -188,7 +188,7 @@ static value fnPvariance(cffi& a){
 static value fnVariance(cffi& a){
     std::vector<double> numbers = asNumbers(a, 0);
     if (numbers.size() < 2){
-        a.vm->raiseError("statistics.StatisticsError", "variance requires at least two data points");
+        a.vmPtr->raiseError("statistics.StatisticsError", "variance requires at least two data points");
         return a.none();
     }
     return a.mkfloat(varianceOf(numbers, true));
@@ -203,7 +203,7 @@ static value fnHarmonicMean(cffi& a){
     double total = 0.0;
     for (double value : numbers){
         if (value <= 0.0){
-            a.vm->raiseError("statistics.StatisticsError", "harmonic mean does not support negative values");
+            a.vmPtr->raiseError("statistics.StatisticsError", "harmonic mean does not support negative values");
             return a.none();
         }
         total += 1.0 / value;
@@ -220,7 +220,7 @@ static value fnGeometricMean(cffi& a){
     double total = 0.0;
     for (double value : numbers){
         if (value <= 0.0){
-            a.vm->raiseError("statistics.StatisticsError", "geometric mean does not support negative values");
+            a.vmPtr->raiseError("statistics.StatisticsError", "geometric mean does not support negative values");
             return a.none();
         }
         total += std::log(value);
@@ -233,11 +233,11 @@ static value fnGeometricMean(cffi& a){
 static bool requirePairData(cffi& a, const std::vector<double>& xs, const std::vector<double>& ys,
                             const std::string& func){
     if (xs.size() != ys.size()){
-        a.vm->raiseError("statistics.StatisticsError", "x and y must have the same length");
+        a.vmPtr->raiseError("statistics.StatisticsError", "x and y must have the same length");
         return false;
     }
     if (xs.size() < 2){
-        a.vm->raiseError("statistics.StatisticsError", func + " requires at least two data points");
+        a.vmPtr->raiseError("statistics.StatisticsError", func + " requires at least two data points");
         return false;
     }
     return true;
@@ -249,15 +249,15 @@ static bool requirePairData(cffi& a, const std::vector<double>& xs, const std::v
 static value fnQuantiles(cffi& a){
     std::vector<double> numbers = asNumbers(a, 0);
     if (numbers.size() < 2){
-        a.vm->raiseError("statistics.StatisticsError", "must have at least two data points");
+        a.vmPtr->raiseError("statistics.StatisticsError", "must have at least two data points");
         return a.none();
     }
     long long n = a.kwarg_int("n", 4);
     if (n < 1){
-        a.vm->raiseError("statistics.StatisticsError", "n must be at least 1");
+        a.vmPtr->raiseError("statistics.StatisticsError", "n must be at least 1");
         return a.none();
     }
-    std::string method = a.has_kwarg("method") ? a.vm->toString(a.kwarg("method")) : "exclusive";
+    std::string method = a.has_kwarg("method") ? a.vmPtr->toString(a.kwarg("method")) : "exclusive";
     std::sort(numbers.begin(), numbers.end());
     long long length = static_cast<long long>(numbers.size());
     std::vector<value> result;
@@ -277,7 +277,7 @@ static value fnQuantiles(cffi& a){
             long long delta = i * m - j * n;
             long long lowerIndex = (j - 1 < 0) ? j - 1 + length : j - 1;
             if (j >= length){
-                a.vm->raiseError("IndexError", "list index out of range");
+                a.vmPtr->raiseError("IndexError", "list index out of range");
                 return a.none();
             }
             double value = (numbers[lowerIndex] * static_cast<double>(n - delta) +
@@ -285,7 +285,7 @@ static value fnQuantiles(cffi& a){
             result.push_back(a.mkfloat(value));
         }
     } else {
-        a.vm->raiseError("statistics.StatisticsError", "Unknown method " + method);
+        a.vmPtr->raiseError("statistics.StatisticsError", "Unknown method " + method);
         return a.none();
     }
     return a.mklist(result);
@@ -324,7 +324,7 @@ static value fnCorrelation(cffi& a){
     }
     double denominator = std::sqrt(sxx * syy);
     if (denominator == 0.0){
-        a.vm->raiseError("statistics.StatisticsError", "at least one of the inputs is constant");
+        a.vmPtr->raiseError("statistics.StatisticsError", "at least one of the inputs is constant");
         return a.none();
     }
     return a.mkfloat(sxy / denominator);
@@ -346,12 +346,12 @@ static value fnLinearRegression(cffi& a){
         sxy += dx * (ys[i] - ybar);
     }
     if (sxx == 0.0){
-        a.vm->raiseError("statistics.StatisticsError", "the input x is constant");
+        a.vmPtr->raiseError("statistics.StatisticsError", "the input x is constant");
         return a.none();
     }
     double slope = sxy / sxx;
     double intercept = ybar - slope * xbar;
-    return a.vm->makeTuple({a.mkfloat(slope), a.mkfloat(intercept)});
+    return a.vmPtr->makeTuple({a.mkfloat(slope), a.mkfloat(intercept)});
 }
 
 // fn Median Grouped
@@ -362,7 +362,7 @@ static value fnMedianGrouped(cffi& a){
     if (!requireData(a, numbers)) return a.none();
     if (numbers.size() == 1) return a.mkfloat(numbers[0]);
     double interval = (a.argc() >= 2) ? a.arg_float(1)
-                     : (a.has_kwarg("interval") ? a.vm->toFloat(a.kwarg("interval")) : 1.0);
+                     : (a.has_kwarg("interval") ? a.vmPtr->toFloat(a.kwarg("interval")) : 1.0);
     std::sort(numbers.begin(), numbers.end());
     size_t n = numbers.size();
     double x = numbers[n / 2];

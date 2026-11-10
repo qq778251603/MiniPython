@@ -29,7 +29,7 @@ struct PPSettings{
 // pprint runtime state
 // pprint ᠪᠠᠶᠢᠳᠠᠯ
 struct PPState{
-    vm* vm = nullptr;
+    vm* vmPtr = nullptr;
     PPSettings settings;
     value stream;
     bool hasStream = false;
@@ -275,9 +275,9 @@ void pprintDict(PPState& st, const value& object, std::string& out,
             std::stable_sort(items.begin(), items.end(),
                              [&](const std::pair<value, value>& a,
                                  const std::pair<value, value>& b){
-                                 if (safeLess(*st.vm, a.first, b.first)) return true;
-                                 if (safeLess(*st.vm, b.first, a.first)) return false;
-                                 return safeLess(*st.vm, a.second, b.second);
+                                 if (safeLess(*st.vmPtr, a.first, b.first)) return true;
+                                 if (safeLess(*st.vmPtr, b.first, a.first)) return false;
+                                 return safeLess(*st.vmPtr, a.second, b.second);
                              });
         }
         formatDictItems(st, items, out, indent, allowance + 1, context, level);
@@ -319,7 +319,7 @@ void pprintStr(PPState& st, const value& object, std::string& out,
                std::set<const void*>&, long long level){
     std::string text = *static_cast<std::string*>(object.ptr);
     if (text.empty()){
-        out += stringRepr(*st.vm, text);
+        out += stringRepr(*st.vmPtr, text);
         return;
     }
     std::vector<std::string> lines = splitLinesKeep(text);
@@ -332,7 +332,7 @@ void pprintStr(PPState& st, const value& object, std::string& out,
     std::vector<std::string> chunks;
     std::string lastRep;
     for (size_t i = 0; i < lines.size(); ++i){
-        std::string rep = stringRepr(*st.vm, lines[i]);
+        std::string rep = stringRepr(*st.vmPtr, lines[i]);
         lastRep = rep;
         if (i + 1 == lines.size()) maxWidth1 -= allowance;
         if (static_cast<long long>(rep.size()) <= maxWidth1){
@@ -354,14 +354,14 @@ void pprintStr(PPState& st, const value& object, std::string& out,
         for (size_t j = 0; j < parts.size(); ++j){
             std::string candidate = current + parts[j];
             if (j + 1 == parts.size() && i + 1 == lines.size()) maxWidth2 -= allowance;
-            if (static_cast<long long>(stringRepr(*st.vm, candidate).size()) > maxWidth2){
-                if (!current.empty()) chunks.push_back(stringRepr(*st.vm, current));
+            if (static_cast<long long>(stringRepr(*st.vmPtr, candidate).size()) > maxWidth2){
+                if (!current.empty()) chunks.push_back(stringRepr(*st.vmPtr, current));
                 current = parts[j];
             } else {
                 current = candidate;
             }
         }
-        if (!current.empty()) chunks.push_back(stringRepr(*st.vm, current));
+        if (!current.empty()) chunks.push_back(stringRepr(*st.vmPtr, current));
     }
     if (chunks.size() == 1){
         out += lastRep;
@@ -386,9 +386,9 @@ void pprintBytesValue(PPState& st, const std::string& raw,
                       std::string& out, long long indent, long long allowance,
                       long long level){
     if (raw.size() <= 4){
-        value partValue = st.vm->makeString(raw);
+        value partValue = st.vmPtr->makeString(raw);
         partValue.type = "bytes";
-        out += pythonRepr(*st.vm, partValue);
+        out += pythonRepr(*st.vmPtr, partValue);
         return;
     }
     bool parens = level == 1;
@@ -405,14 +405,14 @@ void pprintBytesValue(PPState& st, const std::string& raw,
         std::string part = raw.substr(i, std::min<size_t>(4, raw.size() - i));
         std::string candidate = current + part;
         if (i == last) width -= allowance;
-        value partValue = st.vm->makeString(candidate);
+        value partValue = st.vmPtr->makeString(candidate);
         partValue.type = "bytes";
-        if (static_cast<long long>(pythonRepr(*st.vm, partValue).size()) > width){
+        if (static_cast<long long>(pythonRepr(*st.vmPtr, partValue).size()) > width){
             if (!current.empty()){
-                value chunk = st.vm->makeString(current);
+                value chunk = st.vmPtr->makeString(current);
                 chunk.type = "bytes";
                 out += delim;
-                out += pythonRepr(*st.vm, chunk);
+                out += pythonRepr(*st.vmPtr, chunk);
                 delim = "\n";
                 appendSpaces(delim, indent);
             }
@@ -422,10 +422,10 @@ void pprintBytesValue(PPState& st, const std::string& raw,
         }
     }
     if (!current.empty()){
-        value chunk = st.vm->makeString(current);
+        value chunk = st.vmPtr->makeString(current);
         chunk.type = "bytes";
         out += delim;
-        out += pythonRepr(*st.vm, chunk);
+        out += pythonRepr(*st.vmPtr, chunk);
     }
     if (parens) out += ")";
 }
@@ -438,9 +438,9 @@ SafeResult safeRepr(PPState& st, const value& object, std::set<const void*>& con
     SafeResult result;
     if (isScalar(object)){
         if (object.type == "int" && st.settings.underscore){
-            result.repr = intUnderscore(st.vm->toInt(object));
+            result.repr = intUnderscore(st.vmPtr->toInt(object));
         } else {
-            result.repr = pythonRepr(*st.vm, object);
+            result.repr = pythonRepr(*st.vmPtr, object);
         }
         return result;
     }
@@ -458,7 +458,7 @@ SafeResult safeRepr(PPState& st, const value& object, std::set<const void*>& con
             return result;
         }
         if (context.count(objid)){
-            result.repr = recursionText(*st.vm, object);
+            result.repr = recursionText(*st.vmPtr, object);
             result.readable = false;
             result.recursive = true;
             return result;
@@ -470,9 +470,9 @@ SafeResult safeRepr(PPState& st, const value& object, std::set<const void*>& con
             std::stable_sort(items.begin(), items.end(),
                              [&](const std::pair<value, value>& a,
                                  const std::pair<value, value>& b){
-                                 if (safeLess(*st.vm, a.first, b.first)) return true;
-                                 if (safeLess(*st.vm, b.first, a.first)) return false;
-                                 return safeLess(*st.vm, a.second, b.second);
+                                 if (safeLess(*st.vmPtr, a.first, b.first)) return true;
+                                 if (safeLess(*st.vmPtr, b.first, a.first)) return false;
+                                 return safeLess(*st.vmPtr, a.second, b.second);
                              });
         }
         long long childLevel = level + 1;
@@ -509,7 +509,7 @@ SafeResult safeRepr(PPState& st, const value& object, std::set<const void*>& con
             return result;
         }
         if (context.count(objid)){
-            result.repr = recursionText(*st.vm, object);
+            result.repr = recursionText(*st.vmPtr, object);
             result.readable = false;
             result.recursive = true;
             return result;
@@ -528,7 +528,7 @@ SafeResult safeRepr(PPState& st, const value& object, std::set<const void*>& con
         result.repr = openText + joined + closeText;
         return result;
     }
-    result.repr = pythonRepr(*st.vm, object);
+    result.repr = pythonRepr(*st.vmPtr, object);
     result.readable = !result.repr.empty() && result.repr[0] != '<';
     return result;
 }
@@ -541,7 +541,7 @@ void formatObject(PPState& st, const value& object, std::string& out,
                   std::set<const void*>& context, long long level){
     const void* objid = object.ptr;
     if (objid && isContainer(object) && context.count(objid)){
-        out += recursionText(*st.vm, object);
+        out += recursionText(*st.vmPtr, object);
         st.recursive = true;
         st.readable = false;
         return;
@@ -671,15 +671,15 @@ bool readPrinterSettings(cffi& a, PPSettings& settings, value& stream, bool& has
     settings.sortDicts = a.kwarg_bool("sort_dicts", true);
     settings.underscore = a.kwarg_bool("underscore_numbers", false);
     if (settings.indent < 0){
-        a.vm->raiseError("ValueError", "indent must be >= 0");
+        a.vmPtr->raiseError("ValueError", "indent must be >= 0");
         return false;
     }
     if (settings.depth == 0 || (a.has_kwarg("depth") && settings.depth <= 0)){
-        a.vm->raiseError("ValueError", "depth must be > 0");
+        a.vmPtr->raiseError("ValueError", "depth must be > 0");
         return false;
     }
     if (settings.width == 0){
-        a.vm->raiseError("ValueError", "width must be != 0");
+        a.vmPtr->raiseError("ValueError", "width must be != 0");
         return false;
     }
     return true;
@@ -704,18 +704,18 @@ PPState* stateOf(cffi& a){
 // pprint
 static value fnPprint(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "pprint() missing 1 required positional argument: 'object'");
+        a.vmPtr->raiseError("TypeError", "pprint() missing 1 required positional argument: 'object'");
         return a.none();
     }
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     st.settings = settingsFrom(a, true);
     if (a.argc() > 1){
         st.stream = a.arg(1);
         st.hasStream = st.stream.type != "none" && st.stream.ptr != nullptr;
     }
     std::string text = formatValue(st, a.arg(0));
-    if (st.hasStream) writeStream(*a.vm, st.stream, text + "\n");
+    if (st.hasStream) writeStream(*a.vmPtr, st.stream, text + "\n");
     else std::cout << text << "\n";
     return a.none();
 }
@@ -725,11 +725,11 @@ static value fnPprint(cffi& a){
 // pformat
 static value fnPformat(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "pformat() missing 1 required positional argument: 'object'");
+        a.vmPtr->raiseError("TypeError", "pformat() missing 1 required positional argument: 'object'");
         return a.none();
     }
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     st.settings = settingsFrom(a, false);
     return a.mkstr(formatValue(st, a.arg(0)));
 }
@@ -739,11 +739,11 @@ static value fnPformat(cffi& a){
 // pp
 static value fnPp(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "pp() missing 1 required positional argument: 'object'");
+        a.vmPtr->raiseError("TypeError", "pp() missing 1 required positional argument: 'object'");
         return a.none();
     }
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     if (a.argc() > 1 && a.arg(1).type != "none") st.stream = a.arg(1);
     if (a.argc() > 2) st.settings.indent = a.arg_int(2);
     if (a.argc() > 3) st.settings.width = a.arg_int(3);
@@ -757,7 +757,7 @@ static value fnPp(cffi& a){
     st.settings.underscore = a.kwarg_bool("underscore_numbers", false);
     std::string text = formatValue(st, a.arg(0));
     if (st.stream.type != "none" && st.stream.ptr != nullptr){
-        writeStream(*a.vm, st.stream, text + "\n");
+        writeStream(*a.vmPtr, st.stream, text + "\n");
     } else {
         std::cout << text << "\n";
     }
@@ -769,7 +769,7 @@ static value fnPp(cffi& a){
 // saferepr
 static value fnSaferepr(cffi& a){
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     std::set<const void*> context;
     SafeResult result = safeRepr(st, a.argc() ? a.arg(0) : a.none(), context, 0, 0);
     return a.mkstr(result.repr);
@@ -780,7 +780,7 @@ static value fnSaferepr(cffi& a){
 // isreadable
 static value fnIsreadable(cffi& a){
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     std::set<const void*> context;
     SafeResult result = safeRepr(st, a.argc() ? a.arg(0) : a.none(), context, 0, 0);
     return a.mkbool(result.readable && !result.recursive);
@@ -791,7 +791,7 @@ static value fnIsreadable(cffi& a){
 // isrecursive
 static value fnIsrecursive(cffi& a){
     PPState st;
-    st.vm = a.vm;
+    st.vmPtr = a.vmPtr;
     std::set<const void*> context;
     SafeResult result = safeRepr(st, a.argc() ? a.arg(0) : a.none(), context, 0, 0);
     return a.mkbool(result.recursive);
@@ -802,7 +802,7 @@ static value fnIsrecursive(cffi& a){
 // PrettyPrinter ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 static value fnPrinterConstructor(cffi& a){
     PPState* st = new PPState();
-    st->vm = a.vm;
+    st->vmPtr = a.vmPtr;
     value stream;
     bool hasStream = false;
     if (!readPrinterSettings(a, st->settings, stream, hasStream)){
@@ -830,7 +830,7 @@ static value fnPrinterPprint(cffi& a){
     PPState* st = stateOf(a);
     if (!st) return a.none();
     std::string text = formatValue(*st, a.arg(0));
-    if (st->hasStream) writeStream(*a.vm, st->stream, text + "\n");
+    if (st->hasStream) writeStream(*a.vmPtr, st->stream, text + "\n");
     else std::cout << text << "\n";
     return a.none();
 }
@@ -867,7 +867,7 @@ static value fnPrinterFormat(cffi& a){
     long long maxlevels = a.argc() > 2 && a.arg(2).type != "none" ? a.arg_int(2) : 0;
     long long level = a.argc() > 3 ? a.arg_int(3) : 0;
     SafeResult result = safeRepr(*st, a.arg(0), context, maxlevels, level);
-    return a.vm->makeTuple({a.mkstr(result.repr), a.mkbool(result.readable),
+    return a.vmPtr->makeTuple({a.mkstr(result.repr), a.mkbool(result.readable),
                             a.mkbool(result.recursive)});
 }
 

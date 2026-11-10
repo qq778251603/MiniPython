@@ -23,7 +23,7 @@ namespace minipy {
 // fn print
 // fn ᠬᠡᠪᠡᠷᠢᠶ᠎ᠡᠷᠢᠶᠡᠨ᠎ᠠ
 static minipy::value fnPrint(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::string sep = " ";
     std::string end = "\n";
     if (args.has_kwarg("sep")){
@@ -57,7 +57,7 @@ static minipy::value fnInput(minipy::cffi& args){
 // fn len
 // fn Len
 static minipy::value fnLen(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() != 1){
         vm.raiseError("TypeError", "len() takes exactly one argument (" +
                                        std::to_string(args.argc()) + " given)");
@@ -124,7 +124,7 @@ static minipy::value fnLen(minipy::cffi& args){
 // fn str
 // fn Str
 static minipy::value fnStr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.mkstr("");
     return args.mkstr(vm.toString(args.arg(0)));
 }
@@ -134,7 +134,7 @@ static minipy::value fnStr(minipy::cffi& args){
 // fn repr
 // fn Repr
 static minipy::value fnRepr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.mkstr("");
     minipy::value value = args.arg(0);
 
@@ -155,7 +155,7 @@ static minipy::value fnRepr(minipy::cffi& args){
 // fn int
 // fn ᠳ᠋ᠠᠩ ᠲᠣ᠎
 static minipy::value fnInt(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() > 2){
         vm.raiseError("TypeError", "int expected at most 2 arguments, got " +
                                        std::to_string(args.argc()));
@@ -204,7 +204,7 @@ static minipy::value fnInt(minipy::cffi& args){
 // fn float
 // fn ᠦᠪᠳᠡᠷᠢᠶ᠎ᠡ
 static minipy::value fnFloat(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.mkfloat(0.0);
     if (args.argc() > 1){
         vm.raiseError("TypeError", "float() takes at most 1 argument (" +
@@ -252,7 +252,7 @@ static minipy::value fnFloat(minipy::cffi& args){
 // fn bool
 // fn ᠪᠤᠯ
 static minipy::value fnBool(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.mkbool(false);
     return args.mkbool(vm.truthy(args.arg(0)));
 }
@@ -261,7 +261,7 @@ static minipy::value fnBool(minipy::cffi& args){
 // fn abs
 // fn Abs
 static minipy::value fnAbs(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() != 1){
         vm.raiseError("TypeError", "abs() takes exactly one argument (" +
                                        std::to_string(args.argc()) + " given)");
@@ -298,7 +298,7 @@ static minipy::value fnAbs(minipy::cffi& args){
 // fn min max
 // fn Min Max
 static minipy::value fnMinMax(minipy::cffi& args, bool wantMax){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::string funcName = wantMax ? "max" : "min";
     std::vector<minipy::value> items;
     if (args.argc() == 0){
@@ -361,7 +361,7 @@ static minipy::value fnMax(minipy::cffi& args){
 // fn sum
 // fn Sum
 static minipy::value fnSum(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.mkint(0);
     std::vector<minipy::value> items;
     vm.materializeIterable(args.arg(0), items);
@@ -376,7 +376,7 @@ static minipy::value fnSum(minipy::cffi& args){
 // fn range
 // fn ᠬᠠᠷᠢᠶ᠎ᠠ
 static minipy::value fnRange(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     long long start = 0;
     long long stop = 0;
     long long step = 1;
@@ -399,7 +399,7 @@ static minipy::value fnRange(minipy::cffi& args){
 // fn list
 // fn ᠲᠠᠯᠠᠭ᠌
 static minipy::value fnList(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() > 0) vm.materializeIterable(args.arg(0), items);
     return args.mklist(items);
@@ -428,7 +428,7 @@ static void dictAssign(minipy::vm& vm, minipy::dict_t& target, const minipy::val
 // fn dict
 // fn ᠲᠣᠭᠲᠠᠭᠤᠯᠭ᠎ᠠ
 static minipy::value fnDict(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::dict_t result;
     if (args.argc() > 0){
         minipy::value source = args.arg(0);
@@ -473,7 +473,7 @@ static minipy::value fnDict(minipy::cffi& args){
 // fn tuple
 // fn ᠬᠣᠶᠠᠳᠠᠯ ᠲᠠᠯᠠᠭ᠌
 static minipy::value fnTuple(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() > 0) vm.materializeIterable(args.arg(0), items);
     return vm.makeTuple(items);
@@ -484,12 +484,12 @@ static minipy::value fnTuple(minipy::cffi& args){
 // fn ᠲᠥᠷᠥᠯ
 static minipy::value fnType(minipy::cffi& args){
     if (args.argc() == 0){
-        minipy::vm& vm = *args.vm;
+        minipy::vm& vm = *args.vmPtr;
         vm.raiseError("TypeError", "type() takes at least 1 argument (0 given)");
         return args.none();
     }
     if (args.argc() == 1){
-        minipy::vm& vm = *args.vm;
+        minipy::vm& vm = *args.vmPtr;
         minipy::value v = args.arg(0);
 
         if (v.type == "object"){
@@ -534,7 +534,7 @@ static minipy::value fnType(minipy::cffi& args){
     }
     if (args.argc() == 3){
 
-        minipy::vm& vm = *args.vm;
+        minipy::vm& vm = *args.vmPtr;
         minipy::value nameVal = args.arg(0);
         minipy::value basesVal = args.arg(1);
         minipy::value nsVal = args.arg(2);
@@ -560,7 +560,7 @@ static minipy::value fnType(minipy::cffi& args){
         return vm.createDynamicClass(className, basesList, nsVal);
     }
 
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     vm.raiseError("TypeError", "type() takes 1 or 3 arguments (" +
                                    std::to_string(args.argc()) + " given)");
     return args.none();
@@ -570,7 +570,7 @@ static minipy::value fnType(minipy::cffi& args){
 // fn round
 // fn Round
 static minipy::value fnRound(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     minipy::value value = args.arg(0);
     if (value.type == "int" || value.type == "bool"){
@@ -596,7 +596,7 @@ static minipy::value fnRound(minipy::cffi& args){
 // fn sorted
 // fn Sorted
 static minipy::value fnSorted(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() > 0) vm.materializeIterable(args.arg(0), items);
     minipy::value keyFunc = args.has_kwarg("key") ? args.kwarg("key") : args.none();
@@ -644,7 +644,7 @@ static minipy::value fnSorted(minipy::cffi& args){
 // fn reversed
 // fn Reversed
 static minipy::value fnReversed(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() > 0) vm.materializeIterable(args.arg(0), items);
     std::reverse(items.begin(), items.end());
@@ -655,7 +655,7 @@ static minipy::value fnReversed(minipy::cffi& args){
 // fn enumerate
 // fn Enumerate
 static minipy::value fnEnumerate(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() > 0) vm.materializeIterable(args.arg(0), items);
     long long start = (args.argc() > 1) ? args.arg_int(1) :
@@ -671,7 +671,7 @@ static minipy::value fnEnumerate(minipy::cffi& args){
 // fn ord
 // fn Ord
 static minipy::value fnOrd(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0 || args.arg(0).type != "str") return args.none();
     std::string text = vm.toString(args.arg(0));
     if (text.empty()) return args.none();
@@ -691,7 +691,7 @@ static minipy::value fnChr(minipy::cffi& args){
 // fn next
 // fn Next
 static minipy::value fnNext(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() != 1 && args.argc() != 2){
         vm.raiseError("TypeError", "next expected 1 argument (" +
                                    std::to_string(args.argc()) + " given)");
@@ -754,7 +754,7 @@ static minipy::value fnNext(minipy::cffi& args){
 // fn property constructor
 // fn Property Constructor
 static minipy::value fnPropertyConstructor(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.mkobject(nullptr);
     if (self.type != "native_object" || self.ptr == nullptr) return self;
     auto* inst = static_cast<minipy::ffi_instance*>(self.ptr);
@@ -814,7 +814,7 @@ static minipy::value callCallable(minipy::vm& vm, const minipy::value& callable,
 // fn property get
 // fn Property ᠬᠠᠯᠠᠬᠤ
 static minipy::value fnPropertyGet(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     minipy::value instance = args.arg(0);
 
@@ -840,7 +840,7 @@ static minipy::value fnPropertyGet(minipy::cffi& args){
 // fn property set
 // fn Property ᠨᠢᠳᠡᠳᠡᠯ ᠰᠡᠲ
 static minipy::value fnPropertySet(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     minipy::value instance = args.arg(0);
     minipy::value value = args.arg(1);
@@ -862,7 +862,7 @@ static minipy::value fnPropertySet(minipy::cffi& args){
 // fn property delete
 // fn Property ᠦᠬᠡᠬᠡᠵᠡ
 static minipy::value fnPropertyDelete(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     minipy::value instance = args.arg(0);
     auto* selfInst = static_cast<minipy::ffi_instance*>(self.ptr);
@@ -884,7 +884,7 @@ static minipy::value fnPropertyDelete(minipy::cffi& args){
 // fn property getter
 // fn Property Getter
 static minipy::value fnPropertyGetter(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     auto* selfInst = static_cast<minipy::ffi_instance*>(self.ptr);
     if (args.argc() >= 1){
@@ -897,7 +897,7 @@ static minipy::value fnPropertyGetter(minipy::cffi& args){
 // fn property setter
 // fn Property Setter
 static minipy::value fnPropertySetter(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     auto* selfInst = static_cast<minipy::ffi_instance*>(self.ptr);
     if (args.argc() >= 1){
@@ -910,7 +910,7 @@ static minipy::value fnPropertySetter(minipy::cffi& args){
 // fn property deleter
 // fn Property Deleter
 static minipy::value fnPropertyDeleter(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     auto* selfInst = static_cast<minipy::ffi_instance*>(self.ptr);
     if (args.argc() >= 1){
@@ -977,7 +977,7 @@ static minipy::value makeClassmethodBound(minipy::vm& vm, const minipy::value& f
 // fn classmethod constructor
 // fn Classmethod Constructor
 static minipy::value fnClassmethodConstructor(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.mkobject(nullptr);
     if (self.type != "native_object" || self.ptr == nullptr) return self;
     auto* inst = static_cast<minipy::ffi_instance*>(self.ptr);
@@ -994,7 +994,7 @@ static minipy::value fnClassmethodConstructor(minipy::cffi& args){
 // fn classmethod get
 // fn Classmethod ᠬᠠᠯᠠᠬᠤ
 static minipy::value fnClassmethodGet(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     minipy::value instance = args.arg(0);
     minipy::value owner = args.arg(1);
@@ -1037,7 +1037,7 @@ static minipy::value fnClassmethodGet(minipy::cffi& args){
 // fn staticmethod constructor
 // fn Staticmethod Constructor
 static minipy::value fnStaticmethodConstructor(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.mkobject(nullptr);
     if (self.type != "native_object" || self.ptr == nullptr) return self;
     auto* inst = static_cast<minipy::ffi_instance*>(self.ptr);
@@ -1054,7 +1054,7 @@ static minipy::value fnStaticmethodConstructor(minipy::cffi& args){
 // fn staticmethod get
 // fn Staticmethod ᠬᠠᠯᠠᠬᠤ
 static minipy::value fnStaticmethodGet(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     minipy::value self = args.self();
     auto* selfInst = static_cast<minipy::ffi_instance*>(self.ptr);
     auto it = selfInst->attributes.find("__func__");
@@ -1070,7 +1070,7 @@ static minipy::value fnStaticmethodGet(minipy::cffi& args){
 // fn hash
 // fn Hash
 static minipy::value fnHash(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() != 1){
         vm.raiseError("TypeError", "hash() takes exactly one argument (" +
                                        std::to_string(args.argc()) + " given)");
@@ -1090,7 +1090,7 @@ static minipy::value fnHash(minipy::cffi& args){
 // fn format
 // fn Format
 static minipy::value fnFormat(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1 || args.argc() > 2){
         vm.raiseError("TypeError", "format() takes at least 1 argument (" +
                                        std::to_string(args.argc()) + " given)");
@@ -1106,7 +1106,7 @@ static minipy::value fnFormat(minipy::cffi& args){
 // fn dir
 // fn Dir
 static minipy::value fnDir(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> listItems;
     if (args.argc() == 0){
 
@@ -1169,10 +1169,10 @@ static minipy::value dataFalse(minipy::cffi& args){
 // fn ᠬᠡᠷᠡᠴᠡᠯᠲᠡᠢ ᠶᠢᠨᠢᠰ
 static minipy::value fnIsInstance(minipy::cffi& args){
     if (args.argc() < 2){
-        args.vm->raiseError("TypeError", "isinstance() takes exactly 2 arguments");
+        args.vmPtr->raiseError("TypeError", "isinstance() takes exactly 2 arguments");
         return args.none();
     }
-    return args.mkbool(args.vm->isInstance(args.arg(0), args.arg(1)));
+    return args.mkbool(args.vmPtr->isInstance(args.arg(0), args.arg(1)));
 }
 
 
@@ -1183,15 +1183,15 @@ static minipy::value fnIsInstance(minipy::cffi& args){
 // fn ᠪᠡᠶᠡᠨ
 static minipy::value fnSuper(minipy::cffi& args){
     if (args.argc() == 0){
-        return args.vm->makeSuper();
+        return args.vmPtr->makeSuper();
     }
     if (args.argc() != 2){
-        args.vm->raiseError("TypeError", "super() takes at most 2 arguments");
+        args.vmPtr->raiseError("TypeError", "super() takes at most 2 arguments");
         return args.none();
     }
     minipy::value cls = args.arg(0);
     minipy::value obj = args.arg(1);
-    return args.vm->makeSuper(&cls, &obj);
+    return args.vmPtr->makeSuper(&cls, &obj);
 }
 
 // fn 是 Subclass
@@ -1199,7 +1199,7 @@ static minipy::value fnSuper(minipy::cffi& args){
 // fn ᠬᠡᠷᠡᠴᠡᠯᠲᠡᠢ Subclass
 static minipy::value fnIsSubclass(minipy::cffi& args){
     if (args.argc() < 2){
-        args.vm->raiseError("TypeError", "issubclass() takes exactly 2 arguments");
+        args.vmPtr->raiseError("TypeError", "issubclass() takes exactly 2 arguments");
         return args.none();
     }
     minipy::value sub = args.arg(0);
@@ -1223,7 +1223,7 @@ static minipy::value fnIsSubclass(minipy::cffi& args){
         if (!si->klass) subTypeName = si->typeName;
     }
     if (subTypeName.empty() && !subIsBool){
-        args.vm->raiseError("TypeError", "issubclass() arg 1 must be a class");
+        args.vmPtr->raiseError("TypeError", "issubclass() arg 1 must be a class");
         return args.none();
     }
 
@@ -1290,7 +1290,7 @@ static minipy::value fnIsSubclass(minipy::cffi& args){
                 }
             }
             if (!tk->klass && (tk->typeName == "dict" || tk->typeName == "list")){
-                if (args.vm->isSubclassOfBuiltin(sub, tk->typeName))
+                if (args.vmPtr->isSubclassOfBuiltin(sub, tk->typeName))
                     return args.mkbool(true);
             }
         }
@@ -1337,7 +1337,7 @@ static minipy::value fnId(minipy::cffi& args){
 // fn has attr
 // fn ᠲᠡᠢ ᠰᠢᠨᠡ
 static minipy::value fnHasAttr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2){
         vm.raiseError("TypeError", "hasattr expected 2 arguments");
         return args.none();
@@ -1351,7 +1351,7 @@ static minipy::value fnHasAttr(minipy::cffi& args){
 // fn get attr
 // fn ᠬᠠᠯᠠᠬᠤ ᠰᠢᠨᠡ
 static minipy::value fnGetAttr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2){
         vm.raiseError("TypeError", "getattr expected 2 arguments");
         return args.none();
@@ -1374,7 +1374,7 @@ static minipy::value fnGetAttr(minipy::cffi& args){
 // fn set attr
 // fn ᠨᠢᠳᠡᠳᠡᠯ ᠰᠡᠲ ᠰᠢᠨᠡ
 static minipy::value fnSetAttr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 3){
         vm.raiseError("TypeError", "setattr expected 3 arguments");
         return args.none();
@@ -1391,7 +1391,7 @@ static minipy::value fnSetAttr(minipy::cffi& args){
 // fn all
 // fn All
 static minipy::value fnAll(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1) return args.mkbool(true);
     std::vector<minipy::value> items;
     vm.materializeIterable(args.arg(0), items);
@@ -1406,7 +1406,7 @@ static minipy::value fnAll(minipy::cffi& args){
 // fn any
 // fn Any
 static minipy::value fnAny(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1) return args.mkbool(false);
     std::vector<minipy::value> items;
     vm.materializeIterable(args.arg(0), items);
@@ -1422,7 +1422,7 @@ static minipy::value fnAny(minipy::cffi& args){
 // fn zip
 // fn Zip
 static minipy::value fnZip(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
 
     if (args.argc() == 0) return args.mklist({});
 
@@ -1453,7 +1453,7 @@ static minipy::value fnZip(minipy::cffi& args){
 // fn del attr
 // fn Del ᠰᠢᠨᠡ
 static minipy::value fnDelAttr(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2){
         vm.raiseError("TypeError", "delattr expected 2 arguments");
         return args.none();
@@ -1472,7 +1472,7 @@ static minipy::value fnDelAttr(minipy::cffi& args){
 // fn vars
 // fn Vars
 static minipy::value fnVars(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0){
 
         return args.mkdict({});
@@ -1498,7 +1498,7 @@ static minipy::value fnVars(minipy::cffi& args){
 // fn iter
 // fn Iter
 static minipy::value fnIter(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1){
         vm.raiseError("TypeError", "iter expected at least 1 argument");
         return args.none();
@@ -1564,7 +1564,7 @@ static minipy::value fnIter(minipy::cffi& args){
 // fn object new
 // fn ᠣᠪᠶᠡᠭᠲ ᠰᠢᠨ᠎ᠡ
 static minipy::value fnObjectNew(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1){
         vm.raiseError("TypeError", "object.__new__() takes exactly one argument (the class to instantiate)");
         return args.none();
@@ -1615,7 +1615,7 @@ static std::string intToBase(long long value, int base, const std::string& prefi
 // fn divmod
 // fn Divmod
 static minipy::value fnDivmod(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2) return args.none();
     minipy::value a = args.arg(0), b = args.arg(1);
     if (a.type == "native_object" && a.ptr){
@@ -1649,7 +1649,7 @@ static minipy::value fnDivmod(minipy::cffi& args){
 // fn bin
 // fn Bin
 static minipy::value fnBin(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     return args.mkstr(intToBase(args.arg_int(0), 2, "0b"));
 }
@@ -1658,7 +1658,7 @@ static minipy::value fnBin(minipy::cffi& args){
 // fn oct
 // fn Oct
 static minipy::value fnOct(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     return args.mkstr(intToBase(args.arg_int(0), 8, "0o"));
 }
@@ -1667,7 +1667,7 @@ static minipy::value fnOct(minipy::cffi& args){
 // fn hex
 // fn Hex
 static minipy::value fnHex(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     return args.mkstr(intToBase(args.arg_int(0), 16, "0x"));
 }
@@ -1676,7 +1676,7 @@ static minipy::value fnHex(minipy::cffi& args){
 // fn map
 // fn Map
 static minipy::value fnMap(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2) return args.mklist({});
     minipy::value fn = args.arg(0);
     std::vector<std::vector<minipy::value>> seqs;
@@ -1700,7 +1700,7 @@ static minipy::value fnMap(minipy::cffi& args){
 // fn filter
 // fn Filter
 static minipy::value fnFilter(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2) return args.mklist({});
     minipy::value fn = args.arg(0);
     std::vector<minipy::value> items;
@@ -1717,7 +1717,7 @@ static minipy::value fnFilter(minipy::cffi& args){
 // fn exec
 // fn Exec
 static minipy::value fnExec(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     vm.execSource(args.arg_str(0));
     return args.none();
@@ -1727,7 +1727,7 @@ static minipy::value fnExec(minipy::cffi& args){
 // fn ascii
 // fn Ascii
 static minipy::value fnAscii(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return args.none();
     return args.mkstr(vm.toString(args.arg(0)));
 }
@@ -1753,11 +1753,11 @@ static FileState* fileStateOf(minipy::cffi& args){
 
 static void requireOpenFile(minipy::cffi& args, FileState* st){
     if (!st){
-        args.vm->raiseError("ValueError", "I/O operation on uninitialized file");
+        args.vmPtr->raiseError("ValueError", "I/O operation on uninitialized file");
         return;
     }
     if (!st->isopen){
-        args.vm->raiseError("ValueError", "I/O operation on closed file");
+        args.vmPtr->raiseError("ValueError", "I/O operation on closed file");
     }
 }
 
@@ -1780,7 +1780,7 @@ static minipy::value fnFileExit(minipy::cffi& args){
 static minipy::value fnFileClose(minipy::cffi& args){
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
-    if (args.vm->hasError()) return args.none();
+    if (args.vmPtr->hasError()) return args.none();
     st->stream.close();
     st->isopen = false;
     args.setattr("closed", args.mkbool(true));
@@ -1791,14 +1791,14 @@ static minipy::value fnFileClose(minipy::cffi& args){
 static minipy::value fnFileFlush(minipy::cffi& args){
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
-    if (args.vm->hasError()) return args.none();
+    if (args.vmPtr->hasError()) return args.none();
     st->stream.flush();
     return args.none();
 }
 
 // fn 文件 read(size=-1)
 static minipy::value fnFileRead(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
     if (vm.hasError()) return args.none();
@@ -1827,7 +1827,7 @@ static minipy::value fnFileRead(minipy::cffi& args){
 
 // fn 文件 readline()
 static minipy::value fnFileReadline(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
     if (vm.hasError()) return args.none();
@@ -1841,7 +1841,7 @@ static minipy::value fnFileReadline(minipy::cffi& args){
 
 // fn 文件 readlines()
 static minipy::value fnFileReadlines(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
     if (vm.hasError()) return args.none();
@@ -1859,7 +1859,7 @@ static minipy::value fnFileReadlines(minipy::cffi& args){
 
 // fn 文件 write(s)
 static minipy::value fnFileWrite(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
     if (vm.hasError()) return args.none();
@@ -1876,7 +1876,7 @@ static minipy::value fnFileWrite(minipy::cffi& args){
 
 // fn 文件 writelines(list)
 static minipy::value fnFileWritelines(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
     if (vm.hasError()) return args.none();
@@ -1895,7 +1895,7 @@ static minipy::value fnFileWritelines(minipy::cffi& args){
 static minipy::value fnFileTell(minipy::cffi& args){
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
-    if (args.vm->hasError()) return args.none();
+    if (args.vmPtr->hasError()) return args.none();
     return args.mkint(static_cast<long long>(st->stream.tellg()));
 }
 
@@ -1903,14 +1903,14 @@ static minipy::value fnFileTell(minipy::cffi& args){
 static minipy::value fnFileSeek(minipy::cffi& args){
     FileState* st = fileStateOf(args);
     requireOpenFile(args, st);
-    if (args.vm->hasError()) return args.none();
+    if (args.vmPtr->hasError()) return args.none();
     long long offset = args.arg_int(0);
     long long whence = args.argc() >= 2 ? args.arg_int(1) : 0;
     std::ios::seekdir dir = std::ios::beg;
     if (whence == 1) dir = std::ios::cur;
     else if (whence == 2) dir = std::ios::end;
     else if (whence != 0){
-        args.vm->raiseError("ValueError", "invalid whence (" + std::to_string(whence) +
+        args.vmPtr->raiseError("ValueError", "invalid whence (" + std::to_string(whence) +
                                          ", should be 0, 1 or 2)");
         return args.none();
     }
@@ -1921,7 +1921,7 @@ static minipy::value fnFileSeek(minipy::cffi& args){
 
 // fn open(file, mode='r', encoding=None, ...)
 static minipy::value fnOpen(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1){
         vm.raiseError("TypeError", "open() missing required argument 'file' (pos 1)");
         return args.none();
@@ -2025,7 +2025,7 @@ static std::string bytesSourceOf(minipy::vm& vm, const minipy::value& v, bool& o
 }
 
 static minipy::value fnBytes(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0) return mkBytesValue(vm, "");
     minipy::value v = args.arg(0);
     if (v.type == "int"){
@@ -2047,13 +2047,13 @@ static minipy::value fnBytes(minipy::cffi& args){
 
 static minipy::value fnBytearray(minipy::cffi& args){
     minipy::value result = fnBytes(args);
-    if (args.vm->hasError()) return result;
+    if (args.vmPtr->hasError()) return result;
     result.type = "bytearray";
     return result;
 }
 
 static minipy::value fnMemoryviewConstructor(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1){
         vm.raiseError("TypeError", "memoryview() missing required argument");
         return args.none();
@@ -2075,7 +2075,7 @@ static minipy::value fnMemoryviewTobytes(minipy::cffi& args){
     if (self.type == "native_object" && self.ptr){
         auto* inst = static_cast<minipy::ffi_instance*>(self.ptr);
         auto* raw = static_cast<std::string*>(inst->handle);
-        if (raw) return mkBytesValue(*args.vm, *raw);
+        if (raw) return mkBytesValue(*args.vmPtr, *raw);
     }
     return args.none();
 }
@@ -2085,7 +2085,7 @@ static minipy::value fnMemoryviewTobytes(minipy::cffi& args){
 // ============================================================
 
 static minipy::value setFromIterable(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<minipy::value> items;
     if (args.argc() >= 1 && args.arg(0).type != "none"){
         vm.materializeIterable(args.arg(0), items);
@@ -2109,7 +2109,7 @@ static minipy::value fnFrozenset(minipy::cffi& args){
 // ============================================================
 
 static minipy::value fnPow(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 2){
         vm.raiseError("TypeError", "pow() missing required argument (expected 2-3, got " +
                                      std::to_string(args.argc()) + ")");
@@ -2164,7 +2164,7 @@ static minipy::value fnSliceConstructor(minipy::cffi& args){
 }
 
 static minipy::value fnComplexConstructor(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     double real = args.argc() >= 1 ? args.arg_float(0) : 0.0;
     double imag = args.argc() >= 2 ? args.arg_float(1) : 0.0;
 
@@ -2175,7 +2175,7 @@ static minipy::value fnComplexConstructor(minipy::cffi& args){
 }
 
 static minipy::value fnCompile(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() < 1){
         vm.raiseError("TypeError", "compile() missing required argument 'source'");
         return args.none();
@@ -2196,7 +2196,7 @@ static minipy::value fnBreakpoint(minipy::cffi& args){
 }
 
 static minipy::value fnHelp(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() == 0){
         std::cout << "Welcome to MiniPython! This is the interactive help utility.\n"
                      "help(obj) prints information about obj.\n";
@@ -2208,7 +2208,7 @@ static minipy::value fnHelp(minipy::cffi& args){
 }
 
 static minipy::value scopeSnapshot(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     std::vector<std::string> names = vm.collectScopeNames();
     std::vector<std::pair<minipy::value, minipy::value>> kv;
     for (const auto& name : names){
@@ -2227,7 +2227,7 @@ static minipy::value fnLocals(minipy::cffi& args){
 }
 
 static minipy::value fnImport(minipy::cffi& args){
-    minipy::vm& vm = *args.vm;
+    minipy::vm& vm = *args.vmPtr;
     if (args.argc() >= 1){
         vm.raiseError("ImportError", "__import__('" + args.arg_str(0) +
                                        "') is not supported; use the import statement");

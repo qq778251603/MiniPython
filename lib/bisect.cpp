@@ -16,9 +16,9 @@ namespace {
 // less Than
 bool lessThan(minipy::cffi& a, const minipy::value& left, const minipy::value& right){
     if (left.type == "str" && right.type == "str"){
-        return a.vm->toString(left) < a.vm->toString(right);
+        return a.vmPtr->toString(left) < a.vmPtr->toString(right);
     }
-    return a.vm->toFloat(left) < a.vm->toFloat(right);
+    return a.vmPtr->toFloat(left) < a.vmPtr->toFloat(right);
 }
 
 // as 列表
@@ -27,7 +27,7 @@ bool lessThan(minipy::cffi& a, const minipy::value& left, const minipy::value& r
 std::vector<minipy::value>* asList(minipy::cffi& a, const char* name){
     auto value = a.arg(0);
     if (value.type != "list" || value.ptr == nullptr){
-        a.vm->raiseError("TypeError", std::string("object of type '") + value.type +
+        a.vmPtr->raiseError("TypeError", std::string("object of type '") + value.type +
                                           "' passed to " + name + "() does not support indexing");
         return nullptr;
     }

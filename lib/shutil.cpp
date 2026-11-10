@@ -362,52 +362,52 @@ bool extractTar(const std::string& archive, const std::string& target, std::stri
 
 // ---------- 公共函数 ----------
 static value fnCopyFile(cffi& a){
-    fs::path src = fsPathFromUtf8(a.vm->toString(a.arg(0)));
-    fs::path dst = fsPathFromUtf8(a.vm->toString(a.arg(1)));
+    fs::path src = fsPathFromUtf8(a.vmPtr->toString(a.arg(0)));
+    fs::path dst = fsPathFromUtf8(a.vmPtr->toString(a.arg(1)));
     std::error_code ec;
     if (fs::is_directory(dst, ec)){
-        a.vm->raiseError("IsADirectoryError",
-            "[Errno 21] Is a directory: '" + a.vm->toString(a.arg(1)) + "'");
+        a.vmPtr->raiseError("IsADirectoryError",
+            "[Errno 21] Is a directory: '" + a.vmPtr->toString(a.arg(1)) + "'");
         return a.none();
     }
     bool same = false;
     if (fs::exists(src, ec) && fs::exists(dst, ec))
         same = fs::equivalent(src, dst, ec);
-    if (same) return a.mkstr(a.vm->toString(a.arg(1)));
+    if (same) return a.mkstr(a.vmPtr->toString(a.arg(1)));
     if (!copyFileImpl(src, dst)){
-        a.vm->raiseError("FileNotFoundError",
-            "[Errno 2] No such file or directory: '" + a.vm->toString(a.arg(0)) + "'");
+        a.vmPtr->raiseError("FileNotFoundError",
+            "[Errno 2] No such file or directory: '" + a.vmPtr->toString(a.arg(0)) + "'");
         return a.none();
     }
-    return a.mkstr(a.vm->toString(a.arg(1)));
+    return a.mkstr(a.vmPtr->toString(a.arg(1)));
 }
 
 static value fnCopy(cffi& a){
     value r = fnCopyFile(a);
-    if (a.vm->hasError()) return a.none();
-    copyAttrs(fsPathFromUtf8(a.vm->toString(a.arg(0))),
-              fsPathFromUtf8(a.vm->toString(a.arg(1))), false);
+    if (a.vmPtr->hasError()) return a.none();
+    copyAttrs(fsPathFromUtf8(a.vmPtr->toString(a.arg(0))),
+              fsPathFromUtf8(a.vmPtr->toString(a.arg(1))), false);
     return r;
 }
 
 static value fnCopy2(cffi& a){
     value r = fnCopyFile(a);
-    if (a.vm->hasError()) return a.none();
-    copyAttrs(fsPathFromUtf8(a.vm->toString(a.arg(0))),
-              fsPathFromUtf8(a.vm->toString(a.arg(1))), true);
+    if (a.vmPtr->hasError()) return a.none();
+    copyAttrs(fsPathFromUtf8(a.vmPtr->toString(a.arg(0))),
+              fsPathFromUtf8(a.vmPtr->toString(a.arg(1))), true);
     return r;
 }
 
 static value fnCopyMode(cffi& a){
     std::error_code ec;
-    auto st = fs::status(fsPathFromUtf8(a.vm->toString(a.arg(0))), ec);
-    if (!ec) fs::permissions(fsPathFromUtf8(a.vm->toString(a.arg(1))), st.permissions(), ec);
+    auto st = fs::status(fsPathFromUtf8(a.vmPtr->toString(a.arg(0))), ec);
+    if (!ec) fs::permissions(fsPathFromUtf8(a.vmPtr->toString(a.arg(1))), st.permissions(), ec);
     return a.none();
 }
 
 static value fnCopyStat(cffi& a){
-    copyAttrs(fsPathFromUtf8(a.vm->toString(a.arg(0))),
-              fsPathFromUtf8(a.vm->toString(a.arg(1))), true);
+    copyAttrs(fsPathFromUtf8(a.vmPtr->toString(a.arg(0))),
+              fsPathFromUtf8(a.vmPtr->toString(a.arg(1))), true);
     return a.none();
 }
 
@@ -419,16 +419,16 @@ bool isIgnored(cffi& a, value& ignoreFn, const std::string& dir,
     std::vector<value> nameValues;
     for (auto& n : names) nameValues.push_back(a.mkstr(n));
     args.push_back(a.mklist(nameValues));
-    bool hadError = a.vm->hasError();
-    value result = a.vm->callValue(ignoreFn, args);
-    if (a.vm->hasError()){
-        if (!hadError) a.vm->clearErr();
+    bool hadError = a.vmPtr->hasError();
+    value result = a.vmPtr->callValue(ignoreFn, args);
+    if (a.vmPtr->hasError()){
+        if (!hadError) a.vmPtr->clearErr();
         return false;
     }
     if (result.type == "list" || result.type == "tuple" || result.type == "set"){
         std::vector<value> items;
-        a.vm->materializeIterable(result, items);
-        for (auto& item : items) ignored.insert(a.vm->toString(item));
+        a.vmPtr->materializeIterable(result, items);
+        for (auto& item : items) ignored.insert(a.vmPtr->toString(item));
     }
     return true;
 }
@@ -437,12 +437,12 @@ bool copyTreeRec(cffi& a, const fs::path& src, const fs::path& dst, bool symlink
                  bool dirsExistOk, value& ignoreFn, bool copy2Mode){
     std::error_code ec;
     if (!fs::exists(src, ec)){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[Errno 2] No such file or directory: '" + u8Text(src) + "'");
         return false;
     }
     if (fs::exists(dst, ec) && !dirsExistOk){
-        a.vm->raiseError("FileExistsError",
+        a.vmPtr->raiseError("FileExistsError",
             "[Errno 17] File exists: '" + u8Text(dst) + "'");
         return false;
     }
@@ -469,8 +469,8 @@ bool copyTreeRec(cffi& a, const fs::path& src, const fs::path& dst, bool symlink
 }
 
 static value fnCopyTree(cffi& a){
-    fs::path src = fsPathFromUtf8(a.vm->toString(a.arg(0)));
-    fs::path dst = fsPathFromUtf8(a.vm->toString(a.arg(1)));
+    fs::path src = fsPathFromUtf8(a.vmPtr->toString(a.arg(0)));
+    fs::path dst = fsPathFromUtf8(a.vmPtr->toString(a.arg(1)));
     bool symlinks = a.has_kwarg("symlinks") ? a.kwarg_bool("symlinks", false) : false;
     bool dirsExistOk = a.has_kwarg("dirs_exist_ok")
                            ? a.kwarg_bool("dirs_exist_ok", false) : false;
@@ -481,21 +481,21 @@ static value fnCopyTree(cffi& a){
 }
 
 static value fnRmtree(cffi& a){
-    std::string path = a.vm->toString(a.arg(0));
+    std::string path = a.vmPtr->toString(a.arg(0));
     bool ignoreErrors = a.has_kwarg("ignore_errors")
                             ? a.kwarg_bool("ignore_errors", false) : false;
     removeTree(fsPathFromUtf8(path));
     if (!ignoreErrors){
         std::error_code ec;
         if (fs::exists(fsPathFromUtf8(path), ec))
-            a.vm->raiseError("OSError", "Cannot remove tree: '" + path + "'");
+            a.vmPtr->raiseError("OSError", "Cannot remove tree: '" + path + "'");
     }
     return a.none();
 }
 
 static value fnMove(cffi& a){
-    std::string srcText = a.vm->toString(a.arg(0));
-    std::string dstText = a.vm->toString(a.arg(1));
+    std::string srcText = a.vmPtr->toString(a.arg(0));
+    std::string dstText = a.vmPtr->toString(a.arg(1));
     fs::path src = fsPathFromUtf8(srcText);
     fs::path dst = fsPathFromUtf8(dstText);
     std::error_code ec;
@@ -515,7 +515,7 @@ static value fnMove(cffi& a){
     }
     std::error_code ec2;
     if (!fs::exists(dst, ec2)){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[Errno 2] No such file or directory: '" + srcText + "'");
         return a.none();
     }
@@ -523,11 +523,11 @@ static value fnMove(cffi& a){
 }
 
 static value fnWhich(cffi& a){
-    std::string cmd = a.vm->toString(a.arg(0));
+    std::string cmd = a.vmPtr->toString(a.arg(0));
 #if defined(_WIN32)
     std::vector<std::string> dirs;
     if (a.has_kwarg("path") && a.kwarg("path").type != "none"){
-        std::string pathText = a.vm->toString(a.kwarg("path"));
+        std::string pathText = a.vmPtr->toString(a.kwarg("path"));
         size_t start = 0;
         while (start <= pathText.size()){
             size_t sep = pathText.find_first_of(";:", start);
@@ -585,12 +585,12 @@ static value fnWhich(cffi& a){
 }
 
 static value fnDiskUsage(cffi& a){
-    fs::space_info info = fs::space(fsPathFromUtf8(a.vm->toString(a.arg(0))));
+    fs::space_info info = fs::space(fsPathFromUtf8(a.vmPtr->toString(a.arg(0))));
     std::vector<value> result;
     result.push_back(a.mkint(static_cast<long long>(info.capacity)));
     result.push_back(a.mkint(static_cast<long long>(info.capacity - info.free)));
     result.push_back(a.mkint(static_cast<long long>(info.free)));
-    return a.vm->makeTuple(result);
+    return a.vmPtr->makeTuple(result);
 }
 
 static value fnGetTerminalSize(cffi& a){
@@ -599,8 +599,8 @@ static value fnGetTerminalSize(cffi& a){
         value fb = a.kwarg("fallback");
         if (fb.type == "list" || fb.type == "tuple"){
             auto* items = static_cast<std::vector<value>*>(fb.ptr);
-            if (items->size() >= 1) columns = a.vm->toInt((*items)[0]);
-            if (items->size() >= 2) lines = a.vm->toInt((*items)[1]);
+            if (items->size() >= 1) columns = a.vmPtr->toInt((*items)[0]);
+            if (items->size() >= 2) lines = a.vmPtr->toInt((*items)[1]);
         }
     }
     if (const char* env = getenv("COLUMNS")){
@@ -621,7 +621,7 @@ static value fnGetTerminalSize(cffi& a){
     std::vector<value> result;
     result.push_back(a.mkint(columns));
     result.push_back(a.mkint(lines));
-    return a.vm->makeTuple(result);
+    return a.vmPtr->makeTuple(result);
 }
 
 // ignore_patterns 返回可调用的忽略函数
@@ -662,17 +662,17 @@ static bool fnIgnoreCall(vm& v, ffi_instance& inst, const std::vector<value>& ar
 
 static value fnIgnorePatterns(cffi& a){
     auto* st = new IgnorePatternState();
-    for (size_t i = 0; i < a.argc(); ++i) st->patterns.push_back(a.vm->toString(a.arg(i)));
-    return a.vm->makeDynamicObject("IgnorePatterns", st, nullptr, fnIgnoreCall);
+    for (size_t i = 0; i < a.argc(); ++i) st->patterns.push_back(a.vmPtr->toString(a.arg(i)));
+    return a.vmPtr->makeDynamicObject("IgnorePatterns", st, nullptr, fnIgnoreCall);
 }
 
 static value fnMakeArchive(cffi& a){
-    std::string baseName = a.vm->toString(a.arg(0));
-    std::string format = a.vm->toString(a.arg(1));
-    std::string rootDir = a.vm->toString(a.arg(2));
+    std::string baseName = a.vmPtr->toString(a.arg(0));
+    std::string format = a.vmPtr->toString(a.arg(1));
+    std::string rootDir = a.vmPtr->toString(a.arg(2));
     std::string baseDir;
     if (a.has_kwarg("base_dir") && a.kwarg("base_dir").type != "none")
-        baseDir = a.vm->toString(a.kwarg("base_dir"));
+        baseDir = a.vmPtr->toString(a.kwarg("base_dir"));
     else if (!rootDir.empty())
         baseDir = fsPathFromUtf8(rootDir).parent_path().u8string().empty()
                       ? "."
@@ -699,17 +699,17 @@ static value fnMakeArchive(cffi& a){
     if (format == "zip") writeZip(archiveName, files);
     else if (format == "tar") writeTar(archiveName, files);
     else {
-        a.vm->raiseError("ValueError", "unknown archive format '" + format + "'");
+        a.vmPtr->raiseError("ValueError", "unknown archive format '" + format + "'");
         return a.none();
     }
     return a.mkstr(archiveName);
 }
 
 static value fnUnpackArchive(cffi& a){
-    std::string archive = a.vm->toString(a.arg(0));
+    std::string archive = a.vmPtr->toString(a.arg(0));
     std::string target;
     if (a.has_kwarg("extract_dir") && a.kwarg("extract_dir").type != "none")
-        target = a.vm->toString(a.kwarg("extract_dir"));
+        target = a.vmPtr->toString(a.kwarg("extract_dir"));
     if (target.empty()) target = ".";
     std::error_code ec;
     fs::create_directories(fsPathFromUtf8(target), ec);
@@ -722,11 +722,11 @@ static value fnUnpackArchive(cffi& a){
     else if (lower.size() >= 4 && lower.substr(lower.size() - 4) == ".tar")
         ok = extractTar(archive, target, error);
     else {
-        a.vm->raiseError("ValueError", "Unknown archive format");
+        a.vmPtr->raiseError("ValueError", "Unknown archive format");
         return a.none();
     }
     if (!ok){
-        a.vm->raiseError("OSError", error);
+        a.vmPtr->raiseError("OSError", error);
         return a.none();
     }
     return a.none();

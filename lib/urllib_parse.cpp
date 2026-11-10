@@ -239,7 +239,7 @@ value makeUrlObject(cffi& a, const std::string& className,
     value obj = a.none();
     const ffi_class* klass = findClass(a, className);
     if (klass && a.library){
-        obj = a.vm->makeNativeObject(a.library, klass, new UrlPartsState(state));
+        obj = a.vmPtr->makeNativeObject(a.library, klass, new UrlPartsState(state));
     }
     if (obj.type != "native_object") obj = a.none();
     a.setattr(obj, "scheme", a.mkstr(state.scheme));
@@ -271,9 +271,9 @@ value makeUrlObject(cffi& a, const std::string& className,
 // ᠦᠰᠦᠭ ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠢ ᠦᠨᠰᠢᠬᠦ
 bool readStrings(cffi& a, const value& source, std::vector<std::string>& out){
     std::vector<value> items;
-    a.vm->materializeIterable(source, items);
-    if (a.vm->hasError()) return false;
-    for (const auto& item : items) out.push_back(a.vm->toString(item));
+    a.vmPtr->materializeIterable(source, items);
+    if (a.vmPtr->hasError()) return false;
+    for (const auto& item : items) out.push_back(a.vmPtr->toString(item));
     return true;
 }
 }
@@ -337,14 +337,14 @@ static value fnUrlParse(cffi& a){
 // fn Geturl
 static value fnGeturl(cffi& a){
     value self = a.self();
-    std::string scheme = a.vm->toString(a.attr("scheme"));
-    std::string netloc = a.vm->toString(a.attr("netloc"));
-    std::string path = a.vm->toString(a.attr("path"));
-    std::string query = a.vm->toString(a.attr("query"));
-    std::string fragment = a.vm->toString(a.attr("fragment"));
+    std::string scheme = a.vmPtr->toString(a.attr("scheme"));
+    std::string netloc = a.vmPtr->toString(a.attr("netloc"));
+    std::string path = a.vmPtr->toString(a.attr("path"));
+    std::string query = a.vmPtr->toString(a.attr("query"));
+    std::string fragment = a.vmPtr->toString(a.attr("fragment"));
     value params = a.attr("params");
-    if (params.type == "str" && a.vm->toString(params).size() > 0){
-        path += ";" + a.vm->toString(params);
+    if (params.type == "str" && a.vmPtr->toString(params).size() > 0){
+        path += ";" + a.vmPtr->toString(params);
     }
     std::string out;
     if (!netloc.empty() || (path.size() >= 2 && path.substr(0, 2) == "//")){
@@ -451,7 +451,7 @@ static value fnUrlDefrag(cffi& a){
     base += state.path;
     if (state.hasQuery) base += "?" + state.query;
     std::vector<value> items = {a.mkstr(base), a.mkstr(state.fragment)};
-    return a.vm->makeTuple(items);
+    return a.vmPtr->makeTuple(items);
 }
 
 // fn Parse Qsl
@@ -479,7 +479,7 @@ static value fnParseQsl(cffi& a){
         }
         if (!name.empty() || hasValue || keepBlank){
             std::vector<value> pair = {a.mkstr(name), a.mkstr(valueText)};
-            result.push_back(a.vm->makeTuple(pair));
+            result.push_back(a.vmPtr->makeTuple(pair));
         }
         if (end >= query.size()) break;
         begin = end + separator.size();
@@ -554,31 +554,31 @@ static value fnUrlEncode(cffi& a){
     if (source.type == "dict" && source.ptr){
         auto* items = static_cast<dict_t*>(source.ptr);
         for (auto& item : *items){
-            std::string key = a.vm->toString(item.first);
+            std::string key = a.vmPtr->toString(item.first);
             value mapped = item.second;
             if (doseq && (mapped.type == "list" || mapped.type == "tuple")){
                 std::vector<value> values;
-                a.vm->materializeIterable(mapped, values);
-                for (auto& v : values) append(encodePair(key, a.vm->toString(v)));
+                a.vmPtr->materializeIterable(mapped, values);
+                for (auto& v : values) append(encodePair(key, a.vmPtr->toString(v)));
             } else {
-                append(encodePair(key, a.vm->toString(mapped)));
+                append(encodePair(key, a.vmPtr->toString(mapped)));
             }
         }
     } else {
         std::vector<value> pairs;
-        a.vm->materializeIterable(source, pairs);
-        if (a.vm->hasError()) return a.none();
+        a.vmPtr->materializeIterable(source, pairs);
+        if (a.vmPtr->hasError()) return a.none();
         for (auto& pair : pairs){
             std::vector<value> fields;
-            a.vm->materializeIterable(pair, fields);
+            a.vmPtr->materializeIterable(pair, fields);
             if (fields.size() < 2) continue;
-            std::string key = a.vm->toString(fields[0]);
+            std::string key = a.vmPtr->toString(fields[0]);
             if (doseq && (fields[1].type == "list" || fields[1].type == "tuple")){
                 std::vector<value> values;
-                a.vm->materializeIterable(fields[1], values);
-                for (auto& v : values) append(encodePair(key, a.vm->toString(v)));
+                a.vmPtr->materializeIterable(fields[1], values);
+                for (auto& v : values) append(encodePair(key, a.vmPtr->toString(v)));
             } else {
-                append(encodePair(key, a.vm->toString(fields[1])));
+                append(encodePair(key, a.vmPtr->toString(fields[1])));
             }
         }
     }

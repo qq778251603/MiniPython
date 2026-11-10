@@ -143,18 +143,20 @@ void flushValue(std::vector<minipy::token>& tokens, std::string& value,
 // 是否 字符串 Prefix Chars
 // is string prefix chars
 // ᠬᠡᠷᠡᠴᠡᠯᠲᠡᠢ ᠦᠰᠦᠭ Prefix Chars
-bool isStringPrefixChars(const std::string& s, bool& outF, bool& outRaw, bool& outBytes){
-    bool hasF = false, hasR = false, hasB = false, hasU = false;
+bool isStringPrefixChars(const std::string& s, bool& outF, bool& outRaw, bool& outBytes, bool& outTemplate){
+    bool hasF = false, hasR = false, hasB = false, hasU = false, hasT = false;
     for (char c : s){
         if (c == 'f' || c == 'F'){ if (hasF) return false; hasF = true; }
         else if (c == 'r' || c == 'R'){ if (hasR) return false; hasR = true; }
-        else if (c == 'b' || c == 'B'){ if (hasB || hasU) return false; hasB = true; }
-        else if (c == 'u' || c == 'U'){ if (hasU || hasB) return false; hasU = true; }
+        else if (c == 'b' || c == 'B'){ if (hasB || hasU || hasT) return false; hasB = true; }
+        else if (c == 'u' || c == 'U'){ if (hasU || hasB || hasT) return false; hasU = true; }
+        else if (c == 't' || c == 'T'){ if (hasT || hasF || hasB || hasU) return false; hasT = true; }
         else return false;
     }
     outF = hasF;
     outRaw = hasR;
     outBytes = hasB;
+    outTemplate = hasT;
     return true;
 }
 }
@@ -310,8 +312,8 @@ std::vector<token> minipyGetTokens(std::string code){
 
         if ((c == '"' || c == '\'') && pos + 2 < code.size() &&
             code[pos + 1] == c && code[pos + 2] == c){
-            bool fstring = false, rawStr = false, bytesStr = false;
-            if (!isStringPrefixChars(value, fstring, rawStr, bytesStr)){
+            bool fstring = false, rawStr = false, bytesStr = false, tmplStr = false;
+            if (!isStringPrefixChars(value, fstring, rawStr, bytesStr, tmplStr)){
 
                 flushValue(tokens, value, valueStartCol, curCol - 1, lineNumber);
             } else {
@@ -381,6 +383,7 @@ std::vector<token> minipyGetTokens(std::string code){
             tk.col = quoteCol;
             tk.endCol = endCol > 0 ? endCol : quoteCol + 3;
             tk.bytes = bytesStr;
+            tk.tmpl = tmplStr;
             tokens.push_back(tk);
 
 
@@ -389,8 +392,8 @@ std::vector<token> minipyGetTokens(std::string code){
         }
 
         if (c == '\'' || c == '"'){
-            bool fstring = false, rawStr = false, bytesStr = false;
-            if (!isStringPrefixChars(value, fstring, rawStr, bytesStr)){
+            bool fstring = false, rawStr = false, bytesStr = false, tmplStr = false;
+            if (!isStringPrefixChars(value, fstring, rawStr, bytesStr, tmplStr)){
                 flushValue(tokens, value, valueStartCol, curCol - 1, lineNumber);
             } else {
                 value.clear();
@@ -429,6 +432,7 @@ std::vector<token> minipyGetTokens(std::string code){
             tk.col = quoteCol;
             tk.endCol = curCol - 1;
             tk.bytes = bytesStr;
+            tk.tmpl = tmplStr;
             tokens.push_back(tk);
             valueStartCol = curCol;
             continue;
@@ -463,12 +467,55 @@ std::vector<token> minipyGetTokens(std::string code){
             size_t p2 = pos + 1;
             while (p2 < code.size()){
                 char h = code[p2];
-                if (std::isxdigit(static_cast<unsigned char>(h))){ hex += h; p2++; }
+                if (std::isxdigit(static_cast<unsigned char>(h)) || h == '_'){ hex += h; p2++; }
                 else break;
             }
             if (hex.size() > 2){
                 value = hex;
                 pos = p2; curCol = pos;
+                continue;
+            }
+        }
+        else if ((c == 'o' || c == 'O') && !value.empty() && value == "0"){
+            std::string oct = value + c;
+            size_t p2 = pos + 1;
+            while (p2 < code.size()){
+                char h = code[p2];
+                if ((h >= '0' && h <= '7') || h == '_'){ oct += h; p2++; }
+                else break;
+            }
+            if (oct.size() > 2){
+                value = oct;
+                pos = p2; curCol = pos;
+                continue;
+            }
+        }
+        else if ((c == 'b' || c == 'B') && !value.empty() && value == "0"){
+            std::string bin = value + c;
+            size_t p2 = pos + 1;
+            while (p2 < code.size()){
+                char h = code[p2];
+                if (h == '0' || h == '1' || h == '_'){ bin += h; p2++; }
+                else break;
+            }
+            if (bin.size() > 2){
+                value = bin;
+                pos = p2; curCol = pos;
+                continue;
+            }
+        }
+        else if ((c == 'j' || c == 'J') && !value.empty()){
+            // 复数字面量后缀: 2j / 2.5j / 1e3j
+            bool numeric = true;
+            int dotCount = 0;
+            for (unsigned char cc : value){
+                if (std::isdigit(cc)) continue;
+                if (cc == '.' && dotCount == 0){ dotCount++; continue; }
+                numeric = false; break;
+            }
+            if (numeric){
+                value += c;
+                pos++; curCol++;
                 continue;
             }
         }
@@ -514,9 +561,9 @@ std::vector<token> minipyGetTokens(std::string code){
         auto& t3 = tokens[i + 2];
         if (t1.type == tokenType_symbol && t2.type == tokenType_symbol && t3.type == tokenType_symbol){
             std::string op3 = t1.value + t2.value + t3.value;
-            if (op3 == "//=" || op3 == "**=" || op3 == "<<=" || op3 == ">>="){
+            if (op3 == "//=" || op3 == "**=" || op3 == "<<=" || op3 == ">>=" || op3 == "..."){
                 token merged;
-                merged.type = tokenType_symbol;
+                merged.type = (op3 == "...") ? tokenType_value : tokenType_symbol;
                 merged.value = op3;
                 merged.line = t1.line;
                 merged.col = t1.col;
@@ -555,19 +602,68 @@ std::vector<token> minipyGetTokens(std::string code){
 
     for (auto& tk : tokens){
         if (tk.type != tokenType_value) continue;
-        bool hasDigit = false, hasExp = false, hasDot = false, hasSign = false;
+        const std::string& v = tk.value;
+
+        // Check for prefixed literals: 0x..., 0o..., 0b... (hex/oct/bin)
+        if (v.size() >= 2 && v[0] == '0'){
+            char pfx = v[1];
+            if (pfx == 'x' || pfx == 'X'){
+                bool valid = true;
+                bool hasDigit = false;
+                for (size_t i = 2; i < v.size(); ++i){
+                    char c = v[i];
+                    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')){
+                        hasDigit = true; continue;
+                    }
+                    if (c == '_') continue;
+                    valid = false; break;
+                }
+                if (valid && hasDigit){ tk.type = tokenType_number; continue; }
+            }
+            else if (pfx == 'o' || pfx == 'O'){
+                bool valid = true;
+                bool hasDigit = false;
+                for (size_t i = 2; i < v.size(); ++i){
+                    char c = v[i];
+                    if (c >= '0' && c <= '7'){ hasDigit = true; continue; }
+                    if (c == '_') continue;
+                    valid = false; break;
+                }
+                if (valid && hasDigit){ tk.type = tokenType_number; continue; }
+            }
+            else if (pfx == 'b' || pfx == 'B'){
+                bool valid = true;
+                bool hasDigit = false;
+                for (size_t i = 2; i < v.size(); ++i){
+                    char c = v[i];
+                    if (c == '0' || c == '1'){ hasDigit = true; continue; }
+                    if (c == '_') continue;
+                    valid = false; break;
+                }
+                if (valid && hasDigit){ tk.type = tokenType_number; continue; }
+            }
+        }
+
+        bool hasDigit = false, hasExp = false, hasDot = false, hasSign = false, hasImag = false;
         bool numeric = true;
-        for (size_t i = 0; i < tk.value.size(); ++i){
-            unsigned char cc = static_cast<unsigned char>(tk.value[i]);
+        for (size_t i = 0; i < v.size(); ++i){
+            unsigned char cc = static_cast<unsigned char>(v[i]);
             if (std::isdigit(cc)){ hasDigit = true; continue; }
+            if (cc == '_'){
+                if (!hasDigit || i + 1 >= v.size()){ numeric = false; break; }
+                continue;
+            }
             if (cc == '.'){ if (hasDot){ numeric = false; break; } hasDot = true; continue; }
             if (cc == 'e' || cc == 'E'){
                 if (hasExp || !hasDigit){ numeric = false; break; }
                 hasExp = true; continue;
             }
-            if ((cc == '+' || cc == '-') && hasExp && i + 1 < tk.value.size()){
+            if ((cc == '+' || cc == '-') && hasExp && i + 1 < v.size()){
                 if (hasSign){ numeric = false; break; }
                 hasSign = true; continue;
+            }
+            if ((cc == 'j' || cc == 'J') && i + 1 == v.size() && hasDigit){
+                hasImag = true; continue;
             }
             numeric = false; break;
         }

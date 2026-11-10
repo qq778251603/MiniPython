@@ -83,7 +83,7 @@ value makeEventObject(cffi& a, const std::shared_ptr<SchedEvent>& ev){
         auto it = a.library->classes.find("Event");
         if (it != a.library->classes.end()) klass = &it->second;
     }
-    value obj = a.vm->makeNativeObject(a.library, klass, ev.get());
+    value obj = a.vmPtr->makeNativeObject(a.library, klass, ev.get());
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         inst->attributes["time"] = a.mkfloat(ev->time);
@@ -102,15 +102,15 @@ void refreshQueue(cffi& a, SchedulerState* s, const value& self){
     if (self.type != "native_object" || !self.ptr) return;
     std::vector<value> items;
     for (auto* ev : s->queue) items.push_back(makeEventObject(a, std::shared_ptr<SchedEvent>(ev, [](SchedEvent*){})));
-    static_cast<ffi_instance*>(self.ptr)->attributes["queue"] = a.vm->makeList(items);
+    static_cast<ffi_instance*>(self.ptr)->attributes["queue"] = a.vmPtr->makeList(items);
 }
 
 // 读取当前时间
 // Read current time
 // ᠣᠳᠣᠮᠤ ᠴᠠᠭ ᠬᠠᠯᠠᠬᠤ
 double currentTime(cffi& a, SchedulerState* s){
-    value now = a.vm->callValue(s->timefunc, {});
-    return a.vm->toFloat(now);
+    value now = a.vmPtr->callValue(s->timefunc, {});
+    return a.vmPtr->toFloat(now);
 }
 
 // 以可能带关键字参数的方式调用动作
@@ -159,13 +159,13 @@ static value fnSchedulerCtor(cffi& a){
     if (a.argc() > 0 && a.arg(0).type != "none"){
         s->timefunc = a.arg(0);
     } else {
-        s->timefunc = a.vm->makeDynamicObject("builtin_function_or_method",
+        s->timefunc = a.vmPtr->makeDynamicObject("builtin_function_or_method",
                                               (void*)1, nullptr, callerNow);
     }
     if (a.argc() > 1 && a.arg(1).type != "none"){
         s->delayfunc = a.arg(1);
     } else {
-        s->delayfunc = a.vm->makeDynamicObject("builtin_function_or_method",
+        s->delayfunc = a.vmPtr->makeDynamicObject("builtin_function_or_method",
                                                (void*)1, nullptr, callerSleep);
     }
     value obj = a.mkobject(s);
@@ -173,7 +173,7 @@ static value fnSchedulerCtor(cffi& a){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         inst->attributes["timefunc"] = s->timefunc;
         inst->attributes["delayfunc"] = s->delayfunc;
-        inst->attributes["queue"] = a.vm->makeList({});
+        inst->attributes["queue"] = a.vmPtr->makeList({});
     }
     return obj;
 }
@@ -185,10 +185,10 @@ static value fnEnterabs(cffi& a){
     SchedulerState* s = schedulerState(a);
     if (!s) return a.none();
     auto ev = std::make_shared<SchedEvent>();
-    ev->time = a.vm->toFloat(a.arg(0));
+    ev->time = a.vmPtr->toFloat(a.arg(0));
     ev->priority = a.argc() > 1 ? a.arg_int(1) : 0;
     ev->action = a.argc() > 2 ? a.arg(2) : a.none();
-    ev->argument = a.argc() > 3 ? a.arg(3) : a.vm->makeTuple({});
+    ev->argument = a.argc() > 3 ? a.arg(3) : a.vmPtr->makeTuple({});
     ev->kwargs = a.kwargv;
     ev->sequence = s->sequence++;
     s->all.push_back(ev);
@@ -209,7 +209,7 @@ static value fnEnter(cffi& a){
     ev->time = currentTime(a, s) + delay;
     ev->priority = a.argc() > 1 ? a.arg_int(1) : 0;
     ev->action = a.argc() > 2 ? a.arg(2) : a.none();
-    ev->argument = a.argc() > 3 ? a.arg(3) : a.vm->makeTuple({});
+    ev->argument = a.argc() > 3 ? a.arg(3) : a.vmPtr->makeTuple({});
     ev->kwargs = a.kwargv;
     ev->sequence = s->sequence++;
     s->all.push_back(ev);
@@ -260,13 +260,13 @@ static value fnRun(cffi& a){
             double now = currentTime(a, s);
             if (ev->time >= now){
                 double wait = ev->time - now;
-                if (wait > 0.0) a.vm->callValue(s->delayfunc, {a.mkfloat(wait)});
+                if (wait > 0.0) a.vmPtr->callValue(s->delayfunc, {a.mkfloat(wait)});
             }
         }
         s->queue.erase(s->queue.begin());
         refreshQueue(a, s, self);
-        value ignored = callAction(*a.vm, ev->action, ev->argument, ev->kwargs);
-        if (a.vm->hasError()) return a.none();
+        value ignored = callAction(*a.vmPtr, ev->action, ev->argument, ev->kwargs);
+        if (a.vmPtr->hasError()) return a.none();
     }
     return a.none();
 }

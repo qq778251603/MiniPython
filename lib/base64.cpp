@@ -262,7 +262,7 @@ static minipy::value fnB32encode(minipy::cffi& a){ return a.mkstr(encodeBase32(a
 static minipy::value fnB32decode(minipy::cffi& a){
     std::string result;
     if (!decodeBase32(a.arg_str(0), result)){
-        a.vm->raiseError("ValueError", "Non-base32 digit found");
+        a.vmPtr->raiseError("ValueError", "Non-base32 digit found");
         return a.none();
     }
     return a.mkstr(result);
@@ -280,11 +280,11 @@ static minipy::value fnB16decode(minipy::cffi& a){
     std::string result;
     int status = decodeBase16(a.arg_str(0), result);
     if (status == 1){
-        a.vm->raiseError("ValueError", "Odd-length string");
+        a.vmPtr->raiseError("ValueError", "Odd-length string");
         return a.none();
     }
     if (status == 2){
-        a.vm->raiseError("ValueError", "Non-hexadecimal digit found");
+        a.vmPtr->raiseError("ValueError", "Non-hexadecimal digit found");
         return a.none();
     }
     return a.mkstr(result);

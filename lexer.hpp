@@ -32,6 +32,7 @@ struct token{
     int col = 0;
     int endCol = 0;
     bool bytes = false;
+    bool tmpl = false;
 };
 
 

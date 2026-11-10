@@ -74,7 +74,7 @@ value profileRun(cffi& a){
     ProfileState* st = stateOf(a.self());
     std::string stmt = a.arg_str(0);
     auto start = std::chrono::steady_clock::now();
-    a.vm->execSource(stmt);
+    a.vmPtr->execSource(stmt);
     auto end = std::chrono::steady_clock::now();
     st->totalTime += std::chrono::duration<double>(end - start).count();
     st->callCount += 1;
@@ -96,7 +96,7 @@ value profileRuncall(cffi& a){
     std::vector<value> innerArgs;
     for (size_t i = 1; i < a.argc(); ++i) innerArgs.push_back(a.arg(i));
     auto start = std::chrono::steady_clock::now();
-    value result = a.vm->callValue(a.arg(0), innerArgs);
+    value result = a.vmPtr->callValue(a.arg(0), innerArgs);
     auto end = std::chrono::steady_clock::now();
     st->totalTime += std::chrono::duration<double>(end - start).count();
     st->callCount += 1;
@@ -147,7 +147,7 @@ value fnRun(cffi& a){
     std::string stmt = a.arg_str(0);
     ProfileState st;
     auto start = std::chrono::steady_clock::now();
-    a.vm->execSource(stmt);
+    a.vmPtr->execSource(stmt);
     auto end = std::chrono::steady_clock::now();
     st.totalTime = std::chrono::duration<double>(end - start).count();
     st.callCount = 1;
@@ -174,7 +174,7 @@ value fnRunctx(cffi& a){
     if (a.has_kwarg("filename")) filename = a.kwarg_str("filename", "");
     ProfileState st;
     auto start = std::chrono::steady_clock::now();
-    a.vm->execSource(stmt);
+    a.vmPtr->execSource(stmt);
     auto end = std::chrono::steady_clock::now();
     st.totalTime = std::chrono::duration<double>(end - start).count();
     st.callCount = 1;

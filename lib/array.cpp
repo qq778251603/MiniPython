@@ -146,13 +146,13 @@ bool valueToUnits(cffi& a, const value& item, const ArrayState& s,
                   std::vector<long long>& units, bool singleOnly){
     if (item.type != "str"){
         std::string typeName = item.type == "none" ? "NoneType" : item.type;
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "array item must be a unicode character, not " + typeName);
         return false;
     }
     std::vector<long long> cps;
-    if (!decodeCodepoints(a.vm->toString(item), cps)){
-        a.vm->raiseError("TypeError", "array item must be a unicode character");
+    if (!decodeCodepoints(a.vmPtr->toString(item), cps)){
+        a.vmPtr->raiseError("TypeError", "array item must be a unicode character");
         return false;
     }
     for (long long cp : cps){
@@ -167,7 +167,7 @@ bool valueToUnits(cffi& a, const value& item, const ArrayState& s,
         }
     }
     if (singleOnly && units.size() != 1){
-        a.vm->raiseError("TypeError",
+        a.vmPtr->raiseError("TypeError",
                          "array item must be a unicode character, not a string of length " +
                              std::to_string(units.size()));
         return false;
@@ -198,7 +198,7 @@ value elementValue(cffi& a, const ArrayState& s, size_t index){
 // ᠨᠢᠭᠡ ᠡᠯᠡᠮᠡᠨᠲ ᠨᠡᠮᠡᠬᠦ
 bool appendElement(cffi& a, ArrayState& s, const value& item){
     if (s.isFloat){
-        s.floats.push_back(a.vm->toFloat(item));
+        s.floats.push_back(a.vmPtr->toFloat(item));
         return true;
     }
     if (s.isUnicode){
@@ -207,7 +207,7 @@ bool appendElement(cffi& a, ArrayState& s, const value& item){
         for (long long u : units) s.ints.push_back(u);
         return true;
     }
-    s.ints.push_back(a.vm->toInt(item));
+    s.ints.push_back(a.vmPtr->toInt(item));
     return true;
 }
 
@@ -284,7 +284,7 @@ long long readIntegerBytes(const std::string& raw, size_t offset, size_t size){
 value fnArrayConstructor(cffi& a){
     std::string codeText = a.arg_str(0);
     if (codeText.size() != 1 || !validTypecode(codeText[0])){
-        a.vm->raiseError("ValueError",
+        a.vmPtr->raiseError("ValueError",
                          "bad typecode (must be b, B, u, h, H, i, I, l, L, q, Q, f or d)");
         return a.none();
     }
@@ -303,8 +303,8 @@ value fnArrayConstructor(cffi& a){
             for (long long u : units) state->ints.push_back(u);
         } else {
             std::vector<value> items;
-            a.vm->materializeIterable(a.arg(1), items);
-            if (a.vm->hasError()) return a.none();
+            a.vmPtr->materializeIterable(a.arg(1), items);
+            if (a.vmPtr->hasError()) return a.none();
             for (auto& item : items){
                 if (!appendElement(a, *state, item)) return a.none();
             }
@@ -326,8 +326,8 @@ value fnArrayExtend(cffi& a){
     ArrayState* s = arrayState(a);
     if (!s) return a.none();
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), items);
+    if (a.vmPtr->hasError()) return a.none();
     for (auto& item : items){
         if (!appendElement(a, *s, item)) return a.none();
     }
@@ -344,13 +344,13 @@ value fnArrayInsert(cffi& a){
     if (index < 0) index = 0;
     if (index > static_cast<long long>(len)) index = static_cast<long long>(len);
     if (s->isFloat){
-        s->floats.insert(s->floats.begin() + index, a.vm->toFloat(a.arg(1)));
+        s->floats.insert(s->floats.begin() + index, a.vmPtr->toFloat(a.arg(1)));
     } else if (s->isUnicode){
         std::vector<long long> units;
         if (!valueToUnits(a, a.arg(1), *s, units, true)) return a.none();
         s->ints.insert(s->ints.begin() + index, units[0]);
     } else {
-        s->ints.insert(s->ints.begin() + index, a.vm->toInt(a.arg(1)));
+        s->ints.insert(s->ints.begin() + index, a.vmPtr->toInt(a.arg(1)));
     }
     return a.none();
 }
@@ -361,13 +361,13 @@ value fnArrayPop(cffi& a){
     if (!s) return a.none();
     size_t len = arrayLength(*s);
     if (len == 0){
-        a.vm->raiseError("IndexError", "pop from empty array");
+        a.vmPtr->raiseError("IndexError", "pop from empty array");
         return a.none();
     }
     long long index = a.argc() >= 1 ? a.arg_int(0) : -1;
     if (index < 0) index += static_cast<long long>(len);
     if (index < 0 || index >= static_cast<long long>(len)){
-        a.vm->raiseError("IndexError", "pop index out of range");
+        a.vmPtr->raiseError("IndexError", "pop index out of range");
         return a.none();
     }
     if (s->isFloat){
@@ -403,7 +403,7 @@ value fnArrayRemove(cffi& a){
     ArrayState* s = arrayState(a);
     if (!s) return a.none();
     if (s->isFloat){
-        double target = a.vm->toFloat(a.arg(0));
+        double target = a.vmPtr->toFloat(a.arg(0));
         for (size_t i = 0; i < s->floats.size(); ++i){
             if (s->floats[i] == target){
                 s->floats.erase(s->floats.begin() + i);
@@ -419,7 +419,7 @@ value fnArrayRemove(cffi& a){
             return a.none();
         }
     } else {
-        long long target = a.vm->toInt(a.arg(0));
+        long long target = a.vmPtr->toInt(a.arg(0));
         for (size_t i = 0; i < s->ints.size(); ++i){
             if (s->ints[i] == target){
                 s->ints.erase(s->ints.begin() + i);
@@ -427,7 +427,7 @@ value fnArrayRemove(cffi& a){
             }
         }
     }
-    a.vm->raiseError("ValueError", "array.remove(x): x not in array");
+    a.vmPtr->raiseError("ValueError", "array.remove(x): x not in array");
     return a.none();
 }
 
@@ -436,7 +436,7 @@ value fnArrayIndex(cffi& a){
     ArrayState* s = arrayState(a);
     if (!s) return a.none();
     if (s->isFloat){
-        double target = a.vm->toFloat(a.arg(0));
+        double target = a.vmPtr->toFloat(a.arg(0));
         for (size_t i = 0; i < s->floats.size(); ++i)
             if (s->floats[i] == target) return a.mkint(static_cast<long long>(i));
     } else if (s->isUnicode){
@@ -445,11 +445,11 @@ value fnArrayIndex(cffi& a){
         if (!findUnicode(a, *s, a.arg(0), found, ok)) return a.none();
         if (ok) return a.mkint(static_cast<long long>(found));
     } else {
-        long long target = a.vm->toInt(a.arg(0));
+        long long target = a.vmPtr->toInt(a.arg(0));
         for (size_t i = 0; i < s->ints.size(); ++i)
             if (s->ints[i] == target) return a.mkint(static_cast<long long>(i));
     }
-    a.vm->raiseError("ValueError", "array.index(x): x not in array");
+    a.vmPtr->raiseError("ValueError", "array.index(x): x not in array");
     return a.none();
 }
 
@@ -459,14 +459,14 @@ value fnArrayCount(cffi& a){
     if (!s) return a.none();
     long long n = 0;
     if (s->isFloat){
-        double target = a.vm->toFloat(a.arg(0));
+        double target = a.vmPtr->toFloat(a.arg(0));
         for (double v : s->floats) if (v == target) ++n;
     } else if (s->isUnicode){
         std::vector<long long> units;
         if (!valueToUnits(a, a.arg(0), *s, units, true)) return a.none();
         for (long long v : s->ints) if (v == units[0]) ++n;
     } else {
-        long long target = a.vm->toInt(a.arg(0));
+        long long target = a.vmPtr->toInt(a.arg(0));
         for (long long v : s->ints) if (v == target) ++n;
     }
     return a.mkint(n);
@@ -524,8 +524,8 @@ value fnArrayFromList(cffi& a){
     ArrayState* s = arrayState(a);
     if (!s) return a.none();
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), items);
+    if (a.vmPtr->hasError()) return a.none();
     for (auto& item : items){
         if (!appendElement(a, *s, item)) return a.none();
     }
@@ -571,7 +571,7 @@ value fnArrayFromBytes(cffi& a){
         raw = *static_cast<std::string*>(arg.ptr);
     size_t size = typecodeSize(s->typecode);
     if (size == 0 || raw.size() % size != 0){
-        a.vm->raiseError("ValueError", "bytes length not a multiple of item size");
+        a.vmPtr->raiseError("ValueError", "bytes length not a multiple of item size");
         return a.none();
     }
     for (size_t offset = 0; offset < raw.size(); offset += size){
@@ -602,7 +602,7 @@ value fnArrayBufferInfo(cffi& a){
     std::vector<value> pair;
     pair.push_back(a.mkint(static_cast<long long>(reinterpret_cast<intptr_t>(address))));
     pair.push_back(a.mkint(static_cast<long long>(arrayLength(*s))));
-    return a.vm->makeTuple(pair);
+    return a.vmPtr->makeTuple(pair);
 }
 
 // array.__len__
@@ -620,7 +620,7 @@ value fnArrayGetItem(cffi& a){
     long long index = a.arg_int(0);
     if (index < 0) index += static_cast<long long>(len);
     if (index < 0 || index >= static_cast<long long>(len)){
-        a.vm->raiseError("IndexError", "array index out of range");
+        a.vmPtr->raiseError("IndexError", "array index out of range");
         return a.none();
     }
     return elementValue(a, *s, static_cast<size_t>(index));
@@ -634,17 +634,17 @@ value fnArraySetItem(cffi& a){
     long long index = a.arg_int(0);
     if (index < 0) index += static_cast<long long>(len);
     if (index < 0 || index >= static_cast<long long>(len)){
-        a.vm->raiseError("IndexError", "array assignment index out of range");
+        a.vmPtr->raiseError("IndexError", "array assignment index out of range");
         return a.none();
     }
     if (s->isFloat){
-        s->floats[static_cast<size_t>(index)] = a.vm->toFloat(a.arg(1));
+        s->floats[static_cast<size_t>(index)] = a.vmPtr->toFloat(a.arg(1));
     } else if (s->isUnicode){
         std::vector<long long> units;
         if (!valueToUnits(a, a.arg(1), *s, units, true)) return a.none();
         s->ints[static_cast<size_t>(index)] = units[0];
     } else {
-        s->ints[static_cast<size_t>(index)] = a.vm->toInt(a.arg(1));
+        s->ints[static_cast<size_t>(index)] = a.vmPtr->toInt(a.arg(1));
     }
     return a.none();
 }
@@ -664,7 +664,7 @@ value fnArrayRepr(cffi& a){
         std::string joined;
         for (long long v : s->ints) pushCodepoint(joined, static_cast<unsigned int>(v));
         text += "', ";
-        text += pythonRepr(*a.vm, a.mkstr(joined));
+        text += pythonRepr(*a.vmPtr, a.mkstr(joined));
         text += ")";
         return a.mkstr(text);
     }
@@ -672,7 +672,7 @@ value fnArrayRepr(cffi& a){
     for (size_t i = 0; i < len; ++i){
         if (i) text += ", ";
         value item = elementValue(a, *s, i);
-        text += pythonRepr(*a.vm, item);
+        text += pythonRepr(*a.vmPtr, item);
     }
     text += "])";
     return a.mkstr(text);

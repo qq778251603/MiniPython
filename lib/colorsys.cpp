@@ -13,7 +13,7 @@ namespace {
 // ᠭᠤᠷᠪᠠᠨ ᠦᠪᠳᠡᠷᠢᠶ᠎ᠡ ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
 value makeTriple(cffi& a, double x, double y, double z){
     std::vector<value> items = {a.mkfloat(x), a.mkfloat(y), a.mkfloat(z)};
-    return a.vm->makeTuple(items);
+    return a.vmPtr->makeTuple(items);
 }
 
 // 浮点夹取到 [0,1]

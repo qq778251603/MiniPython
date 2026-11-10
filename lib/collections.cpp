@@ -76,12 +76,12 @@ static value fnDequeCtor(cffi& a){
         st->maxlenValue = a.arg(1);
     }
     if (st->maxlen < -1 || (st->maxlenValue.type == "int" && st->maxlen < 0)){
-        a.vm->raiseError("ValueError", "maxlen must be non-negative");
+        a.vmPtr->raiseError("ValueError", "maxlen must be non-negative");
         return a.none();
     }
     if (a.argc() >= 1 && a.arg(0).type != "none"){
         std::vector<value> elems;
-        a.vm->materializeIterable(a.arg(0), elems);
+        a.vmPtr->materializeIterable(a.arg(0), elems);
         for (auto& v : elems) st->items.push_back(v);
         dequeTrim(st);
     }
@@ -111,7 +111,7 @@ static value fnDequePop(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st) return a.none();
     if (st->items.empty()){
-        a.vm->raiseError("IndexError", "pop from an empty deque");
+        a.vmPtr->raiseError("IndexError", "pop from an empty deque");
         return a.none();
     }
     value v = st->items.back();
@@ -123,7 +123,7 @@ static value fnDequePopLeft(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st) return a.none();
     if (st->items.empty()){
-        a.vm->raiseError("IndexError", "pop from an empty deque");
+        a.vmPtr->raiseError("IndexError", "pop from an empty deque");
         return a.none();
     }
     value v = st->items.front();
@@ -135,7 +135,7 @@ static value fnDequeExtend(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st || a.argc() < 1) return a.none();
     std::vector<value> extra;
-    a.vm->materializeIterable(a.arg(0), extra);
+    a.vmPtr->materializeIterable(a.arg(0), extra);
     for (auto& v : extra) st->items.push_back(v);
     dequeTrim(st);
     return a.none();
@@ -145,7 +145,7 @@ static value fnDequeExtendLeft(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st || a.argc() < 1) return a.none();
     std::vector<value> extra;
-    a.vm->materializeIterable(a.arg(0), extra);
+    a.vmPtr->materializeIterable(a.arg(0), extra);
     for (auto& v : extra) st->items.push_front(v);
     dequeTrimLeft(st);
     return a.none();
@@ -165,7 +165,7 @@ static value fnDequeCopy(cffi& a){
     ns->maxlen = st->maxlen;
     ns->maxlenValue = st->maxlenValue;
     const ffi_class* klass = static_cast<ffi_instance*>(a.self().ptr)->klass;
-    return a.vm->makeNativeObject(a.library, klass, ns);
+    return a.vmPtr->makeNativeObject(a.library, klass, ns);
 }
 
 static value fnDequeCount(cffi& a){
@@ -173,7 +173,7 @@ static value fnDequeCount(cffi& a){
     if (!st || a.argc() < 1) return a.mkint(0);
     long long n = 0;
     for (auto& v : st->items){
-        if (a.vm->valuesEqual(v, a.arg(0))) n++;
+        if (a.vmPtr->valuesEqual(v, a.arg(0))) n++;
     }
     return a.mkint(n);
 }
@@ -189,10 +189,10 @@ static value fnDequeIndex(cffi& a){
     if (stop < 0) stop += n;
     if (stop > n) stop = n;
     for (long long i = start; i < stop; ++i){
-        if (a.vm->valuesEqual(st->items[static_cast<size_t>(i)], a.arg(0)))
+        if (a.vmPtr->valuesEqual(st->items[static_cast<size_t>(i)], a.arg(0)))
             return a.mkint(i);
     }
-    a.vm->raiseError("ValueError", "deque.index(x): x not in deque");
+    a.vmPtr->raiseError("ValueError", "deque.index(x): x not in deque");
     return a.none();
 }
 
@@ -213,12 +213,12 @@ static value fnDequeRemove(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st || a.argc() < 1) return a.none();
     for (size_t i = 0; i < st->items.size(); ++i){
-        if (a.vm->valuesEqual(st->items[i], a.arg(0))){
+        if (a.vmPtr->valuesEqual(st->items[i], a.arg(0))){
             st->items.erase(st->items.begin() + static_cast<long long>(i));
             return a.none();
         }
     }
-    a.vm->raiseError("ValueError", "deque.remove(x): x not in deque");
+    a.vmPtr->raiseError("ValueError", "deque.remove(x): x not in deque");
     return a.none();
 }
 
@@ -254,14 +254,14 @@ static value fnDequeGetitem(cffi& a){
     if (!st) return a.none();
     value idx = a.arg(0);
     if (idx.type != "int"){
-        a.vm->raiseError("TypeError", "deque indices must be integers");
+        a.vmPtr->raiseError("TypeError", "deque indices must be integers");
         return a.none();
     }
     long long i = *static_cast<long long*>(idx.ptr);
     long long n = static_cast<long long>(st->items.size());
     if (i < 0) i += n;
     if (i < 0 || i >= n){
-        a.vm->raiseError("IndexError", "deque index out of range");
+        a.vmPtr->raiseError("IndexError", "deque index out of range");
         return a.none();
     }
     return st->items[static_cast<size_t>(i)];
@@ -274,7 +274,7 @@ static value fnDequeSetitem(cffi& a){
     long long n = static_cast<long long>(st->items.size());
     if (i < 0) i += n;
     if (i < 0 || i >= n){
-        a.vm->raiseError("IndexError", "deque index out of range");
+        a.vmPtr->raiseError("IndexError", "deque index out of range");
         return a.none();
     }
     st->items[static_cast<size_t>(i)] = a.arg(1);
@@ -288,7 +288,7 @@ static value fnDequeDelitem(cffi& a){
     long long n = static_cast<long long>(st->items.size());
     if (i < 0) i += n;
     if (i < 0 || i >= n){
-        a.vm->raiseError("IndexError", "deque index out of range");
+        a.vmPtr->raiseError("IndexError", "deque index out of range");
         return a.none();
     }
     st->items.erase(st->items.begin() + i);
@@ -299,7 +299,7 @@ static value fnDequeContains(cffi& a){
     auto* st = dequeOf(a.self());
     if (!st || a.argc() < 1) return a.mkbool(false);
     for (auto& v : st->items){
-        if (a.vm->valuesEqual(v, a.arg(0))) return a.mkbool(true);
+        if (a.vmPtr->valuesEqual(v, a.arg(0))) return a.mkbool(true);
     }
     return a.mkbool(false);
 }
@@ -310,7 +310,7 @@ static value fnDequeRepr(cffi& a){
     std::string text = "deque([";
     for (size_t i = 0; i < st->items.size(); ++i){
         if (i > 0) text += ", ";
-        text += pythonRepr(*a.vm, st->items[i]);
+        text += pythonRepr(*a.vmPtr, st->items[i]);
     }
     text += "]";
     if (st->maxlen >= 0) text += ", maxlen=" + std::to_string(st->maxlen);
@@ -325,7 +325,7 @@ static value fnDequeEq(cffi& a){
     if (!rs) return a.mkbool(false);
     if (ls->items.size() != rs->items.size()) return a.mkbool(false);
     for (size_t i = 0; i < ls->items.size(); ++i){
-        if (!a.vm->valuesEqual(ls->items[i], rs->items[i])) return a.mkbool(false);
+        if (!a.vmPtr->valuesEqual(ls->items[i], rs->items[i])) return a.mkbool(false);
     }
     return a.mkbool(true);
 }
@@ -334,7 +334,7 @@ static value fnDequeAdd(cffi& a){
     auto* ls = dequeOf(a.self());
     auto* rs = dequeOf(a.arg(0));
     if (!ls || !rs){
-        a.vm->raiseError("TypeError", "can only concatenate deque to deque");
+        a.vmPtr->raiseError("TypeError", "can only concatenate deque to deque");
         return a.none();
     }
     auto* ns = new DequeState();
@@ -343,7 +343,7 @@ static value fnDequeAdd(cffi& a){
     ns->maxlen = ls->maxlen;
     ns->maxlenValue = ls->maxlenValue;
     const ffi_class* klass = static_cast<ffi_instance*>(a.self().ptr)->klass;
-    return a.vm->makeNativeObject(a.library, klass, ns);
+    return a.vmPtr->makeNativeObject(a.library, klass, ns);
 }
 
 static value fnDequeMul(cffi& a){
@@ -359,7 +359,7 @@ static value fnDequeMul(cffi& a){
         }
     }
     const ffi_class* klass = static_cast<ffi_instance*>(a.self().ptr)->klass;
-    return a.vm->makeNativeObject(a.library, klass, ns);
+    return a.vmPtr->makeNativeObject(a.library, klass, ns);
 }
 
 static value fnDequeIter(cffi& a){
@@ -370,7 +370,7 @@ static value fnDequeIter(cffi& a){
     if (itCls == a.library->classes.end()) return a.self();
     auto* st = new IterState();
     st->target = a.self();
-    return a.vm->makeNativeObject(a.library, &itCls->second, st);
+    return a.vmPtr->makeNativeObject(a.library, &itCls->second, st);
 }
 
 // 统一迭代器 __next__: 按目标类型分发 (前置声明, 定义在 dict-like/namedtuple 之后)
@@ -407,12 +407,12 @@ const ffi_class* dictLikeClass(cffi& a, const char* name){
 
 value makeDictLike(cffi& a, const std::string& flavor, const dict_t& items){
     const ffi_class* klass = dictLikeClass(a, flavor.c_str());
-    if (!klass) return a.vm->makeDict(items);
+    if (!klass) return a.vmPtr->makeDict(items);
     auto* st = new DictLikeState();
     st->items = items;
     st->flavor = flavor;
     st->defaultFactory = a.none();
-    value obj = a.vm->makeNativeObject(a.library, klass, st);
+    value obj = a.vmPtr->makeNativeObject(a.library, klass, st);
     if (flavor == "defaultdict"){
         if (obj.ptr){
             auto* inst = static_cast<ffi_instance*>(obj.ptr);
@@ -454,41 +454,41 @@ static value fnDictLikeLen(cffi& a){
 static value fnDictLikeGetitem(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st){
-        a.vm->raiseError("TypeError", "not a mapping");
+        a.vmPtr->raiseError("TypeError", "not a mapping");
         return a.none();
     }
     value key = a.arg(0);
-    auto it = dictFind(st->items, *a.vm, key);
+    auto it = dictFind(st->items, *a.vmPtr, key);
     if (it != st->items.end()) return it->second;
     if (st->flavor == "Counter") return a.mkint(0);
     if (st->flavor == "defaultdict" && st->defaultFactory.type != "none"){
-        value produced = a.vm->callValue(st->defaultFactory, {});
-        if (a.vm->hasError()) return a.none();
-        std::string err = a.vm->dictSet(value("dict", &st->items, a.vm), key, produced);
+        value produced = a.vmPtr->callValue(st->defaultFactory, {});
+        if (a.vmPtr->hasError()) return a.none();
+        std::string err = a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), key, produced);
         if (!err.empty()){
-            a.vm->raiseError("TypeError", err);
+            a.vmPtr->raiseError("TypeError", err);
             return a.none();
         }
         return produced;
     }
-    a.vm->raiseError("KeyError", pythonRepr(*a.vm, key));
+    a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, key));
     return a.none();
 }
 
 static value fnDictLikeSetitem(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.none();
-    std::string err = a.vm->dictSet(value("dict", &st->items, a.vm), a.arg(0), a.arg(1));
-    if (!err.empty()) a.vm->raiseError("TypeError", err);
+    std::string err = a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.arg(0), a.arg(1));
+    if (!err.empty()) a.vmPtr->raiseError("TypeError", err);
     return a.none();
 }
 
 static value fnDictLikeDelitem(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.none();
-    auto it = dictFind(st->items, *a.vm, a.arg(0));
+    auto it = dictFind(st->items, *a.vmPtr, a.arg(0));
     if (it == st->items.end()){
-        a.vm->raiseError("KeyError", pythonRepr(*a.vm, a.arg(0)));
+        a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, a.arg(0)));
         return a.none();
     }
     st->items.erase(it);
@@ -498,14 +498,14 @@ static value fnDictLikeDelitem(cffi& a){
 static value fnDictLikeContains(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.mkbool(false);
-    return a.mkbool(dictFind(st->items, *a.vm, a.arg(0)) != st->items.end());
+    return a.mkbool(dictFind(st->items, *a.vmPtr, a.arg(0)) != st->items.end());
 }
 
 static value fnDictLikeGet(cffi& a){
     auto* st = dictLikeOf(a.self());
     value fallback = a.argc() > 1 ? a.arg(1) : a.none();
     if (!st) return fallback;
-    auto it = dictFind(st->items, *a.vm, a.arg(0));
+    auto it = dictFind(st->items, *a.vmPtr, a.arg(0));
     return it != st->items.end() ? it->second : fallback;
 }
 
@@ -515,7 +515,7 @@ static value fnDictLikeKeys(cffi& a){
     if (st){
         for (auto& kv : st->items) out.push_back(kv.first);
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnDictLikeValues(cffi& a){
@@ -524,16 +524,16 @@ static value fnDictLikeValues(cffi& a){
     if (st){
         for (auto& kv : st->items) out.push_back(kv.second);
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnDictLikeItems(cffi& a){
     auto* st = dictLikeOf(a.self());
     std::vector<value> out;
     if (st){
-        for (auto& kv : st->items) out.push_back(a.vm->makeTuple({kv.first, kv.second}));
+        for (auto& kv : st->items) out.push_back(a.vmPtr->makeTuple({kv.first, kv.second}));
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnDictLikeUpdate(cffi& a){
@@ -543,24 +543,24 @@ static value fnDictLikeUpdate(cffi& a){
         value src = a.arg(0);
         if (src.type == "dict" && src.ptr){
             for (auto& kv : *static_cast<dict_t*>(src.ptr))
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else if (auto* ss = dictLikeOf(src)){
             for (auto& kv : ss->items)
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else {
             std::vector<value> entries;
-            a.vm->materializeIterable(src, entries);
+            a.vmPtr->materializeIterable(src, entries);
             for (size_t i = 0; i < entries.size(); ++i){
                 if (entries[i].type == "tuple" || entries[i].type == "list"){
                     auto* pair = static_cast<std::vector<value>*>(entries[i].ptr);
                     if (pair->size() == 2)
-                        a.vm->dictSet(value("dict", &st->items, a.vm), (*pair)[0], (*pair)[1]);
+                        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), (*pair)[0], (*pair)[1]);
                 }
             }
         }
     }
     for (auto& kv : a.kwargv){
-        a.vm->dictSet(value("dict", &st->items, a.vm), a.vm->makeString(kv.first), kv.second);
+        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.vmPtr->makeString(kv.first), kv.second);
     }
     return a.none();
 }
@@ -568,14 +568,14 @@ static value fnDictLikeUpdate(cffi& a){
 static value fnDictLikePop(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.none();
-    auto it = dictFind(st->items, *a.vm, a.arg(0));
+    auto it = dictFind(st->items, *a.vmPtr, a.arg(0));
     if (it != st->items.end()){
         value out = it->second;
         st->items.erase(it);
         return out;
     }
     if (a.argc() > 1) return a.arg(1);
-    a.vm->raiseError("KeyError", pythonRepr(*a.vm, a.arg(0)));
+    a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, a.arg(0)));
     return a.none();
 }
 
@@ -583,9 +583,9 @@ static value fnDictLikeSetdefault(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.none();
     value fallback = a.argc() > 1 ? a.arg(1) : a.none();
-    auto it = dictFind(st->items, *a.vm, a.arg(0));
+    auto it = dictFind(st->items, *a.vmPtr, a.arg(0));
     if (it != st->items.end()) return it->second;
-    a.vm->dictSet(value("dict", &st->items, a.vm), a.arg(0), fallback);
+    a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.arg(0), fallback);
     return fallback;
 }
 
@@ -615,11 +615,11 @@ static value fnDictLikeRepr(cffi& a){
                            *static_cast<long long*>(y.second.ptr);
                 });
         }
-        return a.mkstr("Counter(" + dictRepr(*a.vm, sorted) + ")");
+        return a.mkstr("Counter(" + dictRepr(*a.vmPtr, sorted) + ")");
     }
     if (st->flavor == "OrderedDict")
-        return a.mkstr("OrderedDict(" + dictRepr(*a.vm, st->items) + ")");
-    return a.mkstr("defaultdict(" + st->factoryName + ", " + dictRepr(*a.vm, st->items) + ")");
+        return a.mkstr("OrderedDict(" + dictRepr(*a.vmPtr, st->items) + ")");
+    return a.mkstr("defaultdict(" + st->factoryName + ", " + dictRepr(*a.vmPtr, st->items) + ")");
 }
 
 static value fnDictLikeIter(cffi& a){
@@ -627,7 +627,7 @@ static value fnDictLikeIter(cffi& a){
     if (itCls == a.library->classes.end()) return a.self();
     auto* st = new IterState();
     st->target = a.self();
-    return a.vm->makeNativeObject(a.library, &itCls->second, st);
+    return a.vmPtr->makeNativeObject(a.library, &itCls->second, st);
 }
 
 // ============ Counter ============
@@ -641,36 +641,36 @@ static value fnCounterCtor(cffi& a){
         value src = a.arg(0);
         if (src.type == "dict" && src.ptr){
             for (auto& kv : *static_cast<dict_t*>(src.ptr))
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else if (auto* ss = dictLikeOf(src)){
             st->items = ss->items;
         } else {
             std::vector<value> elems;
-            a.vm->materializeIterable(src, elems);
+            a.vmPtr->materializeIterable(src, elems);
             for (auto& el : elems){
-                auto it = dictFind(st->items, *a.vm, el);
+                auto it = dictFind(st->items, *a.vmPtr, el);
                 if (it != st->items.end()){
                     long long cur = (it->second.type == "int" || it->second.type == "bool")
                                         ? *static_cast<long long*>(it->second.ptr) : 0;
-                    a.vm->dictSet(value("dict", &st->items, a.vm), el, a.vm->makeInt(cur + 1));
+                    a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), el, a.vmPtr->makeInt(cur + 1));
                 } else {
-                    a.vm->dictSet(value("dict", &st->items, a.vm), el, a.vm->makeInt(1));
+                    a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), el, a.vmPtr->makeInt(1));
                 }
             }
         }
     }
     for (auto& kv : a.kwargv){
-        a.vm->dictSet(value("dict", &st->items, a.vm), a.vm->makeString(kv.first), kv.second);
+        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.vmPtr->makeString(kv.first), kv.second);
     }
     return obj;
 }
 
 static void counterAddInto(cffi& a, DictLikeState* st, const value& key, long long delta){
-    auto it = dictFind(st->items, *a.vm, key);
+    auto it = dictFind(st->items, *a.vmPtr, key);
     long long cur = 0;
     if (it != st->items.end() && (it->second.type == "int" || it->second.type == "bool"))
         cur = *static_cast<long long*>(it->second.ptr);
-    a.vm->dictSet(value("dict", &st->items, a.vm), key, a.vm->makeInt(cur + delta));
+    a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), key, a.vmPtr->makeInt(cur + delta));
 }
 
 static value fnCounterElements(cffi& a){
@@ -683,12 +683,12 @@ static value fnCounterElements(cffi& a){
             for (long long i = 0; i < n; ++i) out.push_back(kv.first);
         }
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnCounterMostCommon(cffi& a){
     auto* st = dictLikeOf(a.self());
-    if (!st) return a.vm->makeList({});
+    if (!st) return a.vmPtr->makeList({});
     std::vector<std::pair<value, long long>> rows;
     for (auto& kv : st->items){
         long long n = (kv.second.type == "int" || kv.second.type == "bool")
@@ -703,9 +703,9 @@ static value fnCounterMostCommon(cffi& a){
     std::vector<value> out;
     for (auto& p : rows){
         if (limit >= 0 && static_cast<long long>(out.size()) >= limit) break;
-        out.push_back(a.vm->makeTuple({p.first, a.vm->makeInt(p.second)}));
+        out.push_back(a.vmPtr->makeTuple({p.first, a.vmPtr->makeInt(p.second)}));
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnCounterTotal(cffi& a){
@@ -739,14 +739,14 @@ static value fnCounterUpdate(cffi& a){
             }
         } else {
             std::vector<value> elems;
-            a.vm->materializeIterable(src, elems);
+            a.vmPtr->materializeIterable(src, elems);
             for (auto& el : elems) counterAddInto(a, st, el, 1);
         }
     }
     for (auto& kv : a.kwargv){
         long long d = (kv.second.type == "int" || kv.second.type == "bool")
                           ? *static_cast<long long*>(kv.second.ptr) : 1;
-        counterAddInto(a, st, a.vm->makeString(kv.first), d);
+        counterAddInto(a, st, a.vmPtr->makeString(kv.first), d);
     }
     return a.none();
 }
@@ -770,14 +770,14 @@ static value fnCounterSubtract(cffi& a){
             }
         } else {
             std::vector<value> elems;
-            a.vm->materializeIterable(src, elems);
+            a.vmPtr->materializeIterable(src, elems);
             for (auto& el : elems) counterAddInto(a, st, el, -1);
         }
     }
     for (auto& kv : a.kwargv){
         long long d = (kv.second.type == "int" || kv.second.type == "bool")
                           ? *static_cast<long long*>(kv.second.ptr) : 1;
-        counterAddInto(a, st, a.vm->makeString(kv.first), -d);
+        counterAddInto(a, st, a.vmPtr->makeString(kv.first), -d);
     }
     return a.none();
 }
@@ -789,7 +789,7 @@ static value counterSetOp(cffi& a, const std::string& op){
     auto* ls = dictLikeOf(a.self());
     auto* rs = dictLikeOf(a.arg(0));
     if (!ls || !rs){
-        a.vm->raiseError("TypeError", "unsupported operand type(s)");
+        a.vmPtr->raiseError("TypeError", "unsupported operand type(s)");
         return a.none();
     }
     auto* out = new DictLikeState();
@@ -802,47 +802,47 @@ static value counterSetOp(cffi& a, const std::string& op){
         return 0;
     };
     auto put = [&](const value& key, long long val){
-        a.vm->dictSet(value("dict", &out->items, a.vm), key, a.vm->makeInt(val));
+        a.vmPtr->dictSet(value("dict", &out->items, a.vmPtr), key, a.vmPtr->makeInt(val));
     };
     if (op == "+"){
         std::set<std::string> seen;
         for (auto& kv : ls->items){
-            long long r = getCount(ls, *a.vm, kv.first) + getCount(rs, *a.vm, kv.first);
+            long long r = getCount(ls, *a.vmPtr, kv.first) + getCount(rs, *a.vmPtr, kv.first);
             if (r > 0) put(kv.first, r);
-            seen.insert(a.vm->toString(kv.first));
+            seen.insert(a.vmPtr->toString(kv.first));
         }
         for (auto& kv : rs->items){
-            std::string ks = a.vm->toString(kv.first);
+            std::string ks = a.vmPtr->toString(kv.first);
             if (seen.count(ks)) continue;
-            long long r = getCount(ls, *a.vm, kv.first) + getCount(rs, *a.vm, kv.first);
+            long long r = getCount(ls, *a.vmPtr, kv.first) + getCount(rs, *a.vmPtr, kv.first);
             if (r > 0) put(kv.first, r);
         }
     } else if (op == "-"){
         for (auto& kv : ls->items){
-            long long r = getCount(ls, *a.vm, kv.first) - getCount(rs, *a.vm, kv.first);
+            long long r = getCount(ls, *a.vmPtr, kv.first) - getCount(rs, *a.vmPtr, kv.first);
             if (r > 0) put(kv.first, r);
         }
     } else if (op == "&"){
         for (auto& kv : ls->items){
-            long long r = std::min(getCount(ls, *a.vm, kv.first), getCount(rs, *a.vm, kv.first));
+            long long r = std::min(getCount(ls, *a.vmPtr, kv.first), getCount(rs, *a.vmPtr, kv.first));
             if (r > 0) put(kv.first, r);
         }
     } else {
         std::set<std::string> seen;
         for (auto& kv : ls->items){
-            long long r = std::max(getCount(ls, *a.vm, kv.first), getCount(rs, *a.vm, kv.first));
+            long long r = std::max(getCount(ls, *a.vmPtr, kv.first), getCount(rs, *a.vmPtr, kv.first));
             if (r > 0) put(kv.first, r);
-            seen.insert(a.vm->toString(kv.first));
+            seen.insert(a.vmPtr->toString(kv.first));
         }
         for (auto& kv : rs->items){
-            std::string ks = a.vm->toString(kv.first);
+            std::string ks = a.vmPtr->toString(kv.first);
             if (seen.count(ks)) continue;
-            long long r = std::max(getCount(ls, *a.vm, kv.first), getCount(rs, *a.vm, kv.first));
+            long long r = std::max(getCount(ls, *a.vmPtr, kv.first), getCount(rs, *a.vmPtr, kv.first));
             if (r > 0) put(kv.first, r);
         }
     }
     const ffi_class* klass = dictLikeClass(a, "Counter");
-    return a.vm->makeNativeObject(a.library, klass, out);
+    return a.vmPtr->makeNativeObject(a.library, klass, out);
 }
 
 static value fnCounterAdd(cffi& a){ return counterSetOp(a, "+"); }
@@ -861,8 +861,8 @@ static value fnCounterEq(cffi& a){
     else return a.mkbool(false);
     if (ls->items.size() != rd->size()) return a.mkbool(false);
     for (auto& kv : ls->items){
-        auto it = dictFind(*rd, *a.vm, kv.first);
-        if (it == rd->end() || !a.vm->valuesEqual(it->second, kv.second)) return a.mkbool(false);
+        auto it = dictFind(*rd, *a.vmPtr, kv.first);
+        if (it == rd->end() || !a.vmPtr->valuesEqual(it->second, kv.second)) return a.mkbool(false);
     }
     return a.mkbool(true);
 }
@@ -881,24 +881,24 @@ static value fnOrderedCtor(cffi& a){
         value src = a.arg(0);
         if (src.type == "dict" && src.ptr){
             for (auto& kv : *static_cast<dict_t*>(src.ptr))
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else if (auto* ss = dictLikeOf(src)){
             for (auto& kv : ss->items)
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else {
             std::vector<value> entries;
-            a.vm->materializeIterable(src, entries);
+            a.vmPtr->materializeIterable(src, entries);
             for (auto& el : entries){
                 if (el.type == "tuple" || el.type == "list"){
                     auto* pair = static_cast<std::vector<value>*>(el.ptr);
                     if (pair->size() == 2)
-                        a.vm->dictSet(value("dict", &st->items, a.vm), (*pair)[0], (*pair)[1]);
+                        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), (*pair)[0], (*pair)[1]);
                 }
             }
         }
     }
     for (auto& kv : a.kwargv){
-        a.vm->dictSet(value("dict", &st->items, a.vm), a.vm->makeString(kv.first), kv.second);
+        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.vmPtr->makeString(kv.first), kv.second);
     }
     return obj;
 }
@@ -908,11 +908,11 @@ static value fnOrderedMoveToEnd(cffi& a){
     if (!st) return a.none();
     value key = a.arg(0);
     bool last = true;
-    if (a.argc() > 1) last = a.vm->truthy(a.arg(1));
+    if (a.argc() > 1) last = a.vmPtr->truthy(a.arg(1));
     if (a.has_kwarg("last")) last = a.kwarg_bool("last", true);
-    auto it = dictFind(st->items, *a.vm, key);
+    auto it = dictFind(st->items, *a.vmPtr, key);
     if (it == st->items.end()){
-        a.vm->raiseError("KeyError", pythonRepr(*a.vm, key));
+        a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, key));
         return a.none();
     }
     auto pair = *it;
@@ -926,16 +926,16 @@ static value fnOrderedPopitem(cffi& a){
     auto* st = dictLikeOf(a.self());
     if (!st) return a.none();
     bool last = true;
-    if (a.argc() > 0) last = a.vm->truthy(a.arg(0));
-    if (a.has_kwarg("last")) last = a.vm->truthy(a.kwarg("last"));
+    if (a.argc() > 0) last = a.vmPtr->truthy(a.arg(0));
+    if (a.has_kwarg("last")) last = a.vmPtr->truthy(a.kwarg("last"));
     if (st->items.empty()){
-        a.vm->raiseError("KeyError", "'dictionary is empty'");
+        a.vmPtr->raiseError("KeyError", "'dictionary is empty'");
         return a.none();
     }
     auto pair = last ? st->items.back() : st->items.front();
     if (last) st->items.pop_back();
     else st->items.erase(st->items.begin());
-    return a.vm->makeTuple({pair.first, pair.second});
+    return a.vmPtr->makeTuple({pair.first, pair.second});
 }
 
 static value fnOrderedEq(cffi& a){
@@ -946,8 +946,8 @@ static value fnOrderedEq(cffi& a){
     if (rs && rs->flavor == "OrderedDict"){
         if (ls->items.size() != rs->items.size()) return a.mkbool(false);
         for (size_t i = 0; i < ls->items.size(); ++i){
-            if (!a.vm->valuesEqual(ls->items[i].first, rs->items[i].first) ||
-                !a.vm->valuesEqual(ls->items[i].second, rs->items[i].second))
+            if (!a.vmPtr->valuesEqual(ls->items[i].first, rs->items[i].first) ||
+                !a.vmPtr->valuesEqual(ls->items[i].second, rs->items[i].second))
                 return a.mkbool(false);
         }
         return a.mkbool(true);
@@ -958,8 +958,8 @@ static value fnOrderedEq(cffi& a){
     else return a.mkbool(false);
     if (ls->items.size() != rd->size()) return a.mkbool(false);
     for (auto& kv : ls->items){
-        auto it = dictFind(*rd, *a.vm, kv.first);
-        if (it == rd->end() || !a.vm->valuesEqual(it->second, kv.second)) return a.mkbool(false);
+        auto it = dictFind(*rd, *a.vmPtr, kv.first);
+        if (it == rd->end() || !a.vmPtr->valuesEqual(it->second, kv.second)) return a.mkbool(false);
     }
     return a.mkbool(true);
 }
@@ -984,7 +984,7 @@ static value fnDefaultdictCtor(cffi& a){
                 st->factoryName = "<class '" +
                     (fi->klass ? fi->klass->name : fi->typeName) + "'>";
             } else {
-                st->factoryName = pythonRepr(*a.vm, f);
+                st->factoryName = pythonRepr(*a.vmPtr, f);
             }
         }
         argIdx = 1;
@@ -999,21 +999,21 @@ static value fnDefaultdictCtor(cffi& a){
         value src = a.arg(argIdx);
         if (src.type == "dict" && src.ptr){
             for (auto& kv : *static_cast<dict_t*>(src.ptr))
-                a.vm->dictSet(value("dict", &st->items, a.vm), kv.first, kv.second);
+                a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), kv.first, kv.second);
         } else {
             std::vector<value> elems;
-            a.vm->materializeIterable(src, elems);
+            a.vmPtr->materializeIterable(src, elems);
             for (auto& el : elems){
                 if (el.type == "tuple" || el.type == "list"){
                     auto* pair = static_cast<std::vector<value>*>(el.ptr);
                     if (pair->size() == 2)
-                        a.vm->dictSet(value("dict", &st->items, a.vm), (*pair)[0], (*pair)[1]);
+                        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), (*pair)[0], (*pair)[1]);
                 }
             }
         }
     }
     for (auto& kv : a.kwargv){
-        a.vm->dictSet(value("dict", &st->items, a.vm), a.vm->makeString(kv.first), kv.second);
+        a.vmPtr->dictSet(value("dict", &st->items, a.vmPtr), a.vmPtr->makeString(kv.first), kv.second);
     }
     return obj;
 }
@@ -1044,17 +1044,17 @@ dict_t* mapDict(const value& v){
 // Create a ChainMap instance and sync maps/parents attributes
 // ChainMap ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 static value makeChainMapObject(cffi& a, const ffi_class* klass, ChainMapState* st){
-    value obj = a.vm->makeNativeObject(a.library, klass, st);
+    value obj = a.vmPtr->makeNativeObject(a.library, klass, st);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
-        inst->attributes["maps"] = a.vm->makeList(st->maps);
+        inst->attributes["maps"] = a.vmPtr->makeList(st->maps);
         if (st->maps.size() > 1){
             auto* ps = new ChainMapState();
             for (size_t i = 1; i < st->maps.size(); ++i) ps->maps.push_back(st->maps[i]);
-            value pobj = a.vm->makeNativeObject(a.library, klass, ps);
+            value pobj = a.vmPtr->makeNativeObject(a.library, klass, ps);
             if (pobj.type == "native_object" && pobj.ptr)
                 static_cast<ffi_instance*>(pobj.ptr)->attributes["maps"] =
-                    a.vm->makeList(ps->maps);
+                    a.vmPtr->makeList(ps->maps);
             inst->attributes["parents"] = pobj;
         }
     }
@@ -1064,7 +1064,7 @@ static value makeChainMapObject(cffi& a, const ffi_class* klass, ChainMapState* 
 static value fnChainMapCtor(cffi& a){
     auto* st = new ChainMapState();
     if (a.argc() == 0){
-        st->maps.push_back(a.vm->makeDict({}));
+        st->maps.push_back(a.vmPtr->makeDict({}));
     } else {
         for (size_t i = 0; i < a.argc(); ++i) st->maps.push_back(a.arg(i));
     }
@@ -1078,10 +1078,10 @@ static value fnChainMapGetitem(cffi& a){
     for (auto& m : st->maps){
         dict_t* d = mapDict(m);
         if (!d) continue;
-        auto it = dictFind(*d, *a.vm, key);
+        auto it = dictFind(*d, *a.vmPtr, key);
         if (it != d->end()) return it->second;
     }
-    a.vm->raiseError("KeyError", pythonRepr(*a.vm, key));
+    a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, key));
     return a.none();
 }
 
@@ -1089,7 +1089,7 @@ static value fnChainMapSetitem(cffi& a){
     auto* st = chainMapOf(a.self());
     if (!st || st->maps.empty()) return a.none();
     dict_t* d = mapDict(st->maps[0]);
-    if (d) a.vm->dictSet(value("dict", d, a.vm), a.arg(0), a.arg(1));
+    if (d) a.vmPtr->dictSet(value("dict", d, a.vmPtr), a.arg(0), a.arg(1));
     return a.none();
 }
 
@@ -1098,13 +1098,13 @@ static value fnChainMapDelitem(cffi& a){
     if (!st || st->maps.empty()) return a.none();
     dict_t* d = mapDict(st->maps[0]);
     if (d){
-        auto it = dictFind(*d, *a.vm, a.arg(0));
+        auto it = dictFind(*d, *a.vmPtr, a.arg(0));
         if (it != d->end()){
             d->erase(it);
             return a.none();
         }
     }
-    a.vm->raiseError("KeyError", pythonRepr(*a.vm, a.arg(0)));
+    a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, a.arg(0)));
     return a.none();
 }
 
@@ -1113,7 +1113,7 @@ static value fnChainMapContains(cffi& a){
     if (!st) return a.mkbool(false);
     for (auto& m : st->maps){
         dict_t* d = mapDict(m);
-        if (d && dictFind(*d, *a.vm, a.arg(0)) != d->end()) return a.mkbool(true);
+        if (d && dictFind(*d, *a.vmPtr, a.arg(0)) != d->end()) return a.mkbool(true);
     }
     return a.mkbool(false);
 }
@@ -1130,7 +1130,7 @@ static std::vector<value> chainMapKeys(cffi& a, ChainMapState* st){
         for (auto& kv : *d){
             bool dup = false;
             for (auto& existing : out){
-                if (a.vm->valuesEqual(existing, kv.first)){
+                if (a.vmPtr->valuesEqual(existing, kv.first)){
                     dup = true;
                     break;
                 }
@@ -1148,7 +1148,7 @@ static value fnChainMapLen(cffi& a){
 
 static value fnChainMapKeys(cffi& a){
     auto* st = chainMapOf(a.self());
-    return a.vm->makeList(chainMapKeys(a, st));
+    return a.vmPtr->makeList(chainMapKeys(a, st));
 }
 
 static value fnChainMapValues(cffi& a){
@@ -1158,14 +1158,14 @@ static value fnChainMapValues(cffi& a){
         for (auto& m : st->maps){
             dict_t* d = mapDict(m);
             if (!d) continue;
-            auto it = dictFind(*d, *a.vm, k);
+            auto it = dictFind(*d, *a.vmPtr, k);
             if (it != d->end()){
                 out.push_back(it->second);
                 break;
             }
         }
     }
-    return a.vm->makeList(out);
+    return a.vmPtr->makeList(out);
 }
 
 static value fnChainMapItems(cffi& a){
@@ -1176,8 +1176,8 @@ static value fnChainMapItems(cffi& a){
         : std::vector<value>();
     std::vector<value> out;
     for (size_t i = 0; i < keys.size() && i < vals.size(); ++i)
-        out.push_back(a.vm->makeTuple({keys[i], vals[i]}));
-    return a.vm->makeList(out);
+        out.push_back(a.vmPtr->makeTuple({keys[i], vals[i]}));
+    return a.vmPtr->makeList(out);
 }
 
 static value fnChainMapGet(cffi& a){
@@ -1187,7 +1187,7 @@ static value fnChainMapGet(cffi& a){
     for (auto& m : st->maps){
         dict_t* d = mapDict(m);
         if (!d) continue;
-        auto it = dictFind(*d, *a.vm, a.arg(0));
+        auto it = dictFind(*d, *a.vmPtr, a.arg(0));
         if (it != d->end()) return it->second;
     }
     return fallback;
@@ -1198,7 +1198,7 @@ static value fnChainMapNewChild(cffi& a){
     if (!st) return a.none();
     auto* ns = new ChainMapState();
     if (a.argc() > 0 && a.arg(0).type != "none") ns->maps.push_back(a.arg(0));
-    else ns->maps.push_back(a.vm->makeDict({}));
+    else ns->maps.push_back(a.vmPtr->makeDict({}));
     for (auto& m : st->maps) ns->maps.push_back(m);
     const ffi_class* klass = static_cast<ffi_instance*>(a.self().ptr)->klass;
     return makeChainMapObject(a, klass, ns);
@@ -1211,10 +1211,10 @@ static value fnChainMapParents(cffi& a){
     if (st->maps.size() > 1){
         for (size_t i = 1; i < st->maps.size(); ++i) ns->maps.push_back(st->maps[i]);
     } else {
-        ns->maps.push_back(a.vm->makeDict({}));
+        ns->maps.push_back(a.vmPtr->makeDict({}));
     }
     const ffi_class* klass = static_cast<ffi_instance*>(a.self().ptr)->klass;
-    return a.vm->makeNativeObject(a.library, klass, ns);
+    return a.vmPtr->makeNativeObject(a.library, klass, ns);
 }
 
 static value fnChainMapRepr(cffi& a){
@@ -1224,7 +1224,7 @@ static value fnChainMapRepr(cffi& a){
     for (size_t i = 0; i < st->maps.size(); ++i){
         if (i > 0) text += ", ";
         dict_t* d = mapDict(st->maps[i]);
-        text += d ? dictRepr(*a.vm, *d) : a.vm->toString(st->maps[i]);
+        text += d ? dictRepr(*a.vmPtr, *d) : a.vmPtr->toString(st->maps[i]);
     }
     text += ")";
     return a.mkstr(text);
@@ -1282,7 +1282,7 @@ value makeNT(cffi& a, NTClassInfo* info, const std::vector<value>& vals){
     auto* st = new NTState();
     st->info = info;
     st->vals = vals;
-    value obj = a.vm->makeNativeObject(a.library, info->klass, st);
+    value obj = a.vmPtr->makeNativeObject(a.library, info->klass, st);
     if (obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         for (size_t i = 0; i < info->fields.size() && i < vals.size(); ++i)
@@ -1299,7 +1299,7 @@ static value fnNTRepr(cffi& a){
     std::string text = st->info->typeName + "(";
     for (size_t i = 0; i < st->info->fields.size(); ++i){
         if (i > 0) text += ", ";
-        text += st->info->fields[i] + "=" + pythonRepr(*a.vm, st->vals[i]);
+        text += st->info->fields[i] + "=" + pythonRepr(*a.vmPtr, st->vals[i]);
     }
     text += ")";
     return a.mkstr(text);
@@ -1315,14 +1315,14 @@ static value fnNTGetitem(cffi& a){
     if (!st) return a.none();
     value idx = a.arg(0);
     if (idx.type != "int"){
-        a.vm->raiseError("TypeError", "tuple indices must be integers or slices");
+        a.vmPtr->raiseError("TypeError", "tuple indices must be integers or slices");
         return a.none();
     }
     long long i = *static_cast<long long*>(idx.ptr);
     long long n = static_cast<long long>(st->vals.size());
     if (i < 0) i += n;
     if (i < 0 || i >= n){
-        a.vm->raiseError("IndexError", "tuple index out of range");
+        a.vmPtr->raiseError("IndexError", "tuple index out of range");
         return a.none();
     }
     return st->vals[static_cast<size_t>(i)];
@@ -1336,14 +1336,14 @@ static value fnNTAdd(cffi& a){
     if (other.type == "tuple" || other.type == "list"){
         auto* rv = static_cast<std::vector<value>*>(other.ptr);
         out.insert(out.end(), rv->begin(), rv->end());
-        return a.vm->makeTuple(out);
+        return a.vmPtr->makeTuple(out);
     }
     auto* os = ntStateOf(other);
     if (os){
         out.insert(out.end(), os->vals.begin(), os->vals.end());
-        return a.vm->makeTuple(out);
+        return a.vmPtr->makeTuple(out);
     }
-    a.vm->raiseError("TypeError", "can only concatenate tuple (not \"" + other.type +
+    a.vmPtr->raiseError("TypeError", "can only concatenate tuple (not \"" + other.type +
                                   "\") to tuple");
     return a.none();
 }
@@ -1351,7 +1351,7 @@ static value fnNTAdd(cffi& a){
 static value fnNTHash(cffi& a){
     auto* st = ntStateOf(a.self());
     if (!st) return a.mkint(0);
-    return a.mkint(a.vm->hashKey(a.vm->makeTuple(st->vals)));
+    return a.mkint(a.vmPtr->hashKey(a.vmPtr->makeTuple(st->vals)));
 }
 
 static value fnNTEq(cffi& a){
@@ -1366,7 +1366,7 @@ static value fnNTEq(cffi& a){
     else return a.mkbool(false);
     if (ls->vals.size() != rv->size()) return a.mkbool(false);
     for (size_t i = 0; i < ls->vals.size(); ++i){
-        if (!a.vm->valuesEqual(ls->vals[i], (*rv)[i])) return a.mkbool(false);
+        if (!a.vmPtr->valuesEqual(ls->vals[i], (*rv)[i])) return a.mkbool(false);
     }
     return a.mkbool(true);
 }
@@ -1376,14 +1376,14 @@ static value fnNTIter(cffi& a){
     if (itCls == a.library->classes.end()) return a.self();
     auto* st = new IterState();
     st->target = a.self();
-    return a.vm->makeNativeObject(a.library, &itCls->second, st);
+    return a.vmPtr->makeNativeObject(a.library, &itCls->second, st);
 }
 
 static value fnNTContains(cffi& a){
     auto* st = ntStateOf(a.self());
     if (!st) return a.mkbool(false);
     for (auto& v : st->vals){
-        if (a.vm->valuesEqual(v, a.arg(0))) return a.mkbool(true);
+        if (a.vmPtr->valuesEqual(v, a.arg(0))) return a.mkbool(true);
     }
     return a.mkbool(false);
 }
@@ -1393,7 +1393,7 @@ static value fnNTCount(cffi& a){
     long long n = 0;
     if (st){
         for (auto& v : st->vals){
-            if (a.vm->valuesEqual(v, a.arg(0))) n++;
+            if (a.vmPtr->valuesEqual(v, a.arg(0))) n++;
         }
     }
     return a.mkint(n);
@@ -1403,20 +1403,20 @@ static value fnNTIndex(cffi& a){
     auto* st = ntStateOf(a.self());
     if (!st) return a.none();
     for (size_t i = 0; i < st->vals.size(); ++i){
-        if (a.vm->valuesEqual(st->vals[i], a.arg(0)))
+        if (a.vmPtr->valuesEqual(st->vals[i], a.arg(0)))
             return a.mkint(static_cast<long long>(i));
     }
-    a.vm->raiseError("ValueError", "tuple.index(x): x not in tuple");
+    a.vmPtr->raiseError("ValueError", "tuple.index(x): x not in tuple");
     return a.none();
 }
 
 static value fnNTAsDict(cffi& a){
     auto* st = ntStateOf(a.self());
-    if (!st || !st->info) return a.vm->makeDict({});
+    if (!st || !st->info) return a.vmPtr->makeDict({});
     std::vector<std::pair<value, value>> out;
     for (size_t i = 0; i < st->info->fields.size(); ++i)
-        out.push_back({a.vm->makeString(st->info->fields[i]), st->vals[i]});
-    return a.vm->makeDict(out);
+        out.push_back({a.vmPtr->makeString(st->info->fields[i]), st->vals[i]});
+    return a.vmPtr->makeDict(out);
 }
 
 static value fnNTReplace(cffi& a){
@@ -1426,7 +1426,7 @@ static value fnNTReplace(cffi& a){
     for (auto& kv : a.kwargv){
         auto it = std::find(st->info->fields.begin(), st->info->fields.end(), kv.first);
         if (it == st->info->fields.end()){
-            a.vm->raiseError("TypeError", "Got unexpected field names: ['" + kv.first + "']");
+            a.vmPtr->raiseError("TypeError", "Got unexpected field names: ['" + kv.first + "']");
             return a.none();
         }
         vals[static_cast<size_t>(it - st->info->fields.begin())] = kv.second;
@@ -1449,13 +1449,13 @@ static value fnNTMake(cffi& a){
         if (st) info = st->info;
     }
     if (!info){
-        a.vm->raiseError("TypeError", "_make() called on invalid target");
+        a.vmPtr->raiseError("TypeError", "_make() called on invalid target");
         return a.none();
     }
     std::vector<value> vals;
-    a.vm->materializeIterable(a.arg(0), vals);
+    a.vmPtr->materializeIterable(a.arg(0), vals);
     if (vals.size() != info->fields.size()){
-        a.vm->raiseError("TypeError", "Expected " + std::to_string(info->fields.size()) +
+        a.vmPtr->raiseError("TypeError", "Expected " + std::to_string(info->fields.size()) +
                          " arguments, got " + std::to_string(vals.size()));
         return a.none();
     }
@@ -1472,7 +1472,7 @@ static value fnNTCtor(cffi& a);
 // namedtuple
 static value fnNamedTuple(cffi& a){
     if (a.argc() < 2){
-        a.vm->raiseError("TypeError", "namedtuple() missing required arguments");
+        a.vmPtr->raiseError("TypeError", "namedtuple() missing required arguments");
         return a.none();
     }
     std::string typeName = a.arg_str(0);
@@ -1497,11 +1497,11 @@ static value fnNamedTuple(cffi& a){
         if (!cur.empty()) fields.push_back(cur);
     } else {
         std::vector<value> items;
-        a.vm->materializeIterable(fv, items);
-        for (auto& it : items) fields.push_back(a.vm->toString(it));
+        a.vmPtr->materializeIterable(fv, items);
+        for (auto& it : items) fields.push_back(a.vmPtr->toString(it));
     }
     bool rename = a.kwarg_bool("rename", false);
-    if (a.argc() > 2) rename = a.vm->truthy(a.arg(2));
+    if (a.argc() > 2) rename = a.vmPtr->truthy(a.arg(2));
     value defaultsV = a.has_kwarg("defaults") ? a.kwarg("defaults") : a.none();
     if (a.argc() > 3) defaultsV = a.arg(3);
 
@@ -1525,7 +1525,7 @@ static value fnNamedTuple(cffi& a){
             if (rename){
                 f = "_" + std::to_string(i);
             } else {
-                a.vm->raiseError("ValueError", "Encountered duplicate field name: '" + f + "'");
+                a.vmPtr->raiseError("ValueError", "Encountered duplicate field name: '" + f + "'");
                 return a.none();
             }
         }
@@ -1533,7 +1533,7 @@ static value fnNamedTuple(cffi& a){
             if (rename){
                 f = "_" + std::to_string(i);
             } else {
-                a.vm->raiseError("ValueError",
+                a.vmPtr->raiseError("ValueError",
                     "Type names and field names must be valid identifiers: '" + f + "'");
                 return a.none();
             }
@@ -1542,13 +1542,13 @@ static value fnNamedTuple(cffi& a){
             if (rename){
                 f = "_" + std::to_string(i);
             } else {
-                a.vm->raiseError("ValueError",
+                a.vmPtr->raiseError("ValueError",
                     "Type names and field names cannot be a keyword: '" + f + "'");
                 return a.none();
             }
         }
         if (!f.empty() && f[0] == '_' && f.size() > 1 && std::isdigit(static_cast<unsigned char>(f[1])) && !rename){
-            a.vm->raiseError("ValueError",
+            a.vmPtr->raiseError("ValueError",
                 "Field names cannot start with an underscore followed by a digit: '" + f + "'");
             return a.none();
         }
@@ -1593,16 +1593,16 @@ static value fnNamedTuple(cffi& a){
     // 类值: native_object, handle=null, klass 指向动态 ffi_class
     // class value: native_object with null handle
     // ᠬᠢᠶ᠎ᠡ ᠪᠢᠲ᠋ᠢ ᠪᠢᠶᠡ
-    value clsVal = a.vm->makeNativeObject(a.library, klass, nullptr);
+    value clsVal = a.vmPtr->makeNativeObject(a.library, klass, nullptr);
     if (clsVal.ptr){
         auto* inst = static_cast<ffi_instance*>(clsVal.ptr);
         std::vector<value> fieldsList;
-        for (auto& f : fields) fieldsList.push_back(a.vm->makeString(f));
-        inst->attributes["_fields"] = a.vm->makeTuple(fieldsList);
+        for (auto& f : fields) fieldsList.push_back(a.vmPtr->makeString(f));
+        inst->attributes["_fields"] = a.vmPtr->makeTuple(fieldsList);
         std::vector<std::pair<value, value>> fd;
         for (auto& kv : infoPtr->defaults)
-            fd.push_back({a.vm->makeString(kv.first), kv.second});
-        inst->attributes["_field_defaults"] = a.vm->makeDict(fd);
+            fd.push_back({a.vmPtr->makeString(kv.first), kv.second});
+        inst->attributes["_field_defaults"] = a.vmPtr->makeDict(fd);
     }
     return clsVal;
 }
@@ -1613,7 +1613,7 @@ static value fnNamedTuple(cffi& a){
 static value fnNTCtor(cffi& a){
     NTClassInfo* info = ntFindClass(a.currentClass);
     if (!info){
-        a.vm->raiseError("TypeError", "not a namedtuple class");
+        a.vmPtr->raiseError("TypeError", "not a namedtuple class");
         return a.none();
     }
     std::vector<value> vals;
@@ -1637,12 +1637,12 @@ static value fnNTCtor(cffi& a){
             vals.push_back(it->second);
             continue;
         }
-        a.vm->raiseError("TypeError", info->typeName + ".__new__() missing 1 required positional argument: '" +
+        a.vmPtr->raiseError("TypeError", info->typeName + ".__new__() missing 1 required positional argument: '" +
                          info->fields[i] + "'");
         return a.none();
     }
     if (a.argc() > info->fields.size()){
-        a.vm->raiseError("TypeError", info->typeName + ".__new__() takes " +
+        a.vmPtr->raiseError("TypeError", info->typeName + ".__new__() takes " +
                          std::to_string(info->fields.size() + 1) + " positional arguments but " +
                          std::to_string(a.argc() + 1) + " were given");
         return a.none();
@@ -1669,31 +1669,31 @@ static value fnNTCtor(cffi& a){
 static value fnIterNext(cffi& a){
     auto* is = static_cast<IterState*>(static_cast<ffi_instance*>(a.self().ptr)->handle);
     if (!is){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     if (auto* dq = dequeOf(is->target)){
         if (is->index >= static_cast<long long>(dq->items.size())){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
             return a.none();
         }
         return dq->items[static_cast<size_t>(is->index++)];
     }
     if (auto* dl = dictLikeOf(is->target)){
         if (is->index >= static_cast<long long>(dl->items.size())){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
             return a.none();
         }
         return dl->items[static_cast<size_t>(is->index++)].first;
     }
     if (auto* nt = ntStateOf(is->target)){
         if (is->index >= static_cast<long long>(nt->vals.size())){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
             return a.none();
         }
         return nt->vals[static_cast<size_t>(is->index++)];
     }
-    a.vm->raiseError("StopIteration", "");
+    a.vmPtr->raiseError("StopIteration", "");
     return a.none();
 }
 

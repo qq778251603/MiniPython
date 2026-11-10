@@ -16,22 +16,22 @@ std::string reprValue(cffi& a, const value& v, long long level,
                       const std::string& fill){
     if (level <= 0) return fill;
     if (v.type == "str"){
-        std::string text = a.vm->toString(v);
+        std::string text = a.vmPtr->toString(v);
         if (static_cast<long long>(text.size()) > maxstring){
             std::string part = text.substr(0, static_cast<size_t>(maxstring));
-            std::string quoted = pythonRepr(*a.vm, a.mkstr(part));
+            std::string quoted = pythonRepr(*a.vmPtr, a.mkstr(part));
             if (!quoted.empty() && quoted.back() == '\''){
                 quoted.pop_back();
                 quoted += "..." + std::string("'");
             } else {
-                quoted = pythonRepr(*a.vm, a.mkstr(text.substr(0, static_cast<size_t>(maxstring)))) + "...";
+                quoted = pythonRepr(*a.vmPtr, a.mkstr(text.substr(0, static_cast<size_t>(maxstring)))) + "...";
             }
             return quoted;
         }
-        return pythonRepr(*a.vm, v);
+        return pythonRepr(*a.vmPtr, v);
     }
     if (v.type == "int"){
-        std::string text = a.vm->toString(v);
+        std::string text = a.vmPtr->toString(v);
         if (static_cast<long long>(text.size()) > maxlong){
             return text.substr(0, static_cast<size_t>(maxlong)) + "...";
         }
@@ -91,7 +91,7 @@ std::string reprValue(cffi& a, const value& v, long long level,
         out += "}";
         return out;
     }
-    return pythonRepr(*a.vm, v);
+    return pythonRepr(*a.vmPtr, v);
 }
 
 // 从属性读取截断限制
@@ -115,7 +115,7 @@ ReprLimits limitsOf(cffi& a){
     ReprLimits limits;
     auto readInt = [&](const std::string& name, long long fallback){
         value v = a.attr(name);
-        return v.type == "none" ? fallback : a.vm->toInt(v);
+        return v.type == "none" ? fallback : a.vmPtr->toInt(v);
     };
     limits.maxlevel = readInt("maxlevel", 6);
     limits.maxstring = readInt("maxstring", 30);
@@ -125,7 +125,7 @@ ReprLimits limitsOf(cffi& a){
     limits.maxdict = readInt("maxdict", 4);
     limits.maxother = readInt("maxother", 30);
     value fill = a.attr("fillvalue");
-    if (fill.type != "none") limits.fill = a.vm->toString(fill);
+    if (fill.type != "none") limits.fill = a.vmPtr->toString(fill);
     return limits;
 }
 }

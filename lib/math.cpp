@@ -17,8 +17,8 @@ namespace minipy {
 static minipy::value fnSqrt(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x < 0){
-        a.vm->raiseError("ValueError", "expected a nonnegative input, got " +
-                                       a.vm->toString(a.mkfloat(x)));
+        a.vmPtr->raiseError("ValueError", "expected a nonnegative input, got " +
+                                       a.vmPtr->toString(a.mkfloat(x)));
         return a.none();
     }
     return a.mkfloat(std::sqrt(x));
@@ -72,8 +72,8 @@ static minipy::value fnTan(minipy::cffi& a){ return a.mkfloat(std::tan(a.arg_flo
 static minipy::value fnAsin(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x < -1.0 || x > 1.0){
-        a.vm->raiseError("ValueError", "expected a number in range from -1 up to 1, got " +
-                                       a.vm->toString(a.mkfloat(x)));
+        a.vmPtr->raiseError("ValueError", "expected a number in range from -1 up to 1, got " +
+                                       a.vmPtr->toString(a.mkfloat(x)));
         return a.none();
     }
     return a.mkfloat(std::asin(x));
@@ -85,8 +85,8 @@ static minipy::value fnAsin(minipy::cffi& a){
 static minipy::value fnAcos(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x < -1.0 || x > 1.0){
-        a.vm->raiseError("ValueError", "expected a number in range from -1 up to 1, got " +
-                                       a.vm->toString(a.mkfloat(x)));
+        a.vmPtr->raiseError("ValueError", "expected a number in range from -1 up to 1, got " +
+                                       a.vmPtr->toString(a.mkfloat(x)));
         return a.none();
     }
     return a.mkfloat(std::acos(x));
@@ -128,8 +128,8 @@ static minipy::value fnAsinh(minipy::cffi& a){ return a.mkfloat(std::asinh(a.arg
 static minipy::value fnAcosh(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x < 1.0){
-        a.vm->raiseError("ValueError", "expected argument value not less than 1, got " +
-                                       a.vm->toString(a.mkfloat(x)));
+        a.vmPtr->raiseError("ValueError", "expected argument value not less than 1, got " +
+                                       a.vmPtr->toString(a.mkfloat(x)));
         return a.none();
     }
     return a.mkfloat(std::acosh(x));
@@ -141,8 +141,8 @@ static minipy::value fnAcosh(minipy::cffi& a){
 static minipy::value fnAtanh(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x <= -1.0 || x >= 1.0){
-        a.vm->raiseError("ValueError", "expected a number between -1 and 1, got " +
-                                       a.vm->toString(a.mkfloat(x)));
+        a.vmPtr->raiseError("ValueError", "expected a number between -1 and 1, got " +
+                                       a.vmPtr->toString(a.mkfloat(x)));
         return a.none();
     }
     return a.mkfloat(std::atanh(x));
@@ -164,7 +164,7 @@ static minipy::value fnExpm1(minipy::cffi& a){ return a.mkfloat(std::expm1(a.arg
 static minipy::value fnLog(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x <= 0.0){
-        a.vm->raiseError("ValueError", "expected a positive input");
+        a.vmPtr->raiseError("ValueError", "expected a positive input");
         return a.none();
     }
     if (a.argc() >= 2) return a.mkfloat(std::log(x) / std::log(a.arg_float(1)));
@@ -177,7 +177,7 @@ static minipy::value fnLog(minipy::cffi& a){
 static minipy::value fnLog10(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x <= 0.0){
-        a.vm->raiseError("ValueError", "expected a positive input");
+        a.vmPtr->raiseError("ValueError", "expected a positive input");
         return a.none();
     }
     return a.mkfloat(std::log10(x));
@@ -189,7 +189,7 @@ static minipy::value fnLog10(minipy::cffi& a){
 static minipy::value fnLog2(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x <= 0.0){
-        a.vm->raiseError("ValueError", "expected a positive input");
+        a.vmPtr->raiseError("ValueError", "expected a positive input");
         return a.none();
     }
     return a.mkfloat(std::log2(x));
@@ -201,7 +201,7 @@ static minipy::value fnLog2(minipy::cffi& a){
 static minipy::value fnLog1p(minipy::cffi& a){
     double x = a.arg_float(0);
     if (x <= -1.0){
-        a.vm->raiseError("ValueError", "math domain error");
+        a.vmPtr->raiseError("ValueError", "math domain error");
         return a.none();
     }
     return a.mkfloat(std::log1p(x));
@@ -243,7 +243,7 @@ static minipy::value fnRadians(minipy::cffi& a){ return a.mkfloat(a.arg_float(0)
 static minipy::value fnFactorial(minipy::cffi& a){
     long long n = a.arg_int(0);
     if (n < 0){
-        a.vm->raiseError("ValueError", "factorial() not defined for negative values");
+        a.vmPtr->raiseError("ValueError", "factorial() not defined for negative values");
         return a.none();
     }
     long long result = 1;
@@ -279,7 +279,7 @@ static minipy::value fnLcm(minipy::cffi& a){
 static minipy::value fnIsqrt(minipy::cffi& a){
     long long n = a.arg_int(0);
     if (n < 0){
-        a.vm->raiseError("ValueError", "isqrt() argument must be nonnegative");
+        a.vmPtr->raiseError("ValueError", "isqrt() argument must be nonnegative");
         return a.none();
     }
     long long root = static_cast<long long>(std::sqrt(static_cast<double>(n)));
@@ -295,7 +295,7 @@ static minipy::value fnComb(minipy::cffi& a){
     long long n = a.arg_int(0);
     long long k = a.arg_int(1);
     if (n < 0 || k < 0){
-        a.vm->raiseError("ValueError", "math.comb() requires non-negative arguments");
+        a.vmPtr->raiseError("ValueError", "math.comb() requires non-negative arguments");
         return a.none();
     }
     if (k > n) return a.mkint(0);
@@ -312,7 +312,7 @@ static minipy::value fnPerm(minipy::cffi& a){
     long long n = a.arg_int(0);
     long long k = (a.argc() >= 2) ? a.arg_int(1) : n;
     if (n < 0 || k < 0){
-        a.vm->raiseError("ValueError", "math.perm() requires non-negative arguments");
+        a.vmPtr->raiseError("ValueError", "math.perm() requires non-negative arguments");
         return a.none();
     }
     if (k > n) return a.mkint(0);
@@ -325,7 +325,7 @@ static minipy::value fnPerm(minipy::cffi& a){
 // fn prod
 // fn Prod
 static minipy::value fnProd(minipy::cffi& a){
-    minipy::vm& vm = *a.vm;
+    minipy::vm& vm = *a.vmPtr;
     std::vector<minipy::value> items;
     if (a.argc() > 0) vm.materializeIterable(a.arg(0), items);
     auto total = a.mkint(1);
@@ -364,7 +364,7 @@ minipy::value positionalOrKeyword(minipy::cffi& a, size_t index, const char* nam
         ok = true;
         return a.kwarg(name);
     }
-    a.vm->raiseError("TypeError", std::string(func) + "() missing required argument '" + name + "'");
+    a.vmPtr->raiseError("TypeError", std::string(func) + "() missing required argument '" + name + "'");
     ok = false;
     return a.none();
 }
@@ -400,7 +400,7 @@ bool nonFiniteSum(minipy::cffi& a, bool hasNan, bool posInf, bool negInf,
         return true;
     }
     if (posInf && negInf){
-        a.vm->raiseError("ValueError", message);
+        a.vmPtr->raiseError("ValueError", message);
         result = a.none();
         return true;
     }
@@ -427,15 +427,15 @@ static minipy::value fnDist(minipy::cffi& a){
     if (!ok) return a.none();
     std::vector<minipy::value> pItems;
     std::vector<minipy::value> qItems;
-    a.vm->materializeIterable(p, pItems);
-    a.vm->materializeIterable(q, qItems);
+    a.vmPtr->materializeIterable(p, pItems);
+    a.vmPtr->materializeIterable(q, qItems);
     if (pItems.size() != qItems.size()){
-        a.vm->raiseError("ValueError", "both points must have the same number of dimensions");
+        a.vmPtr->raiseError("ValueError", "both points must have the same number of dimensions");
         return a.none();
     }
     double total = 0.0;
     for (size_t i = 0; i < pItems.size(); ++i){
-        double diff = a.vm->toFloat(pItems[i]) - a.vm->toFloat(qItems[i]);
+        double diff = a.vmPtr->toFloat(pItems[i]) - a.vmPtr->toFloat(qItems[i]);
         total = std::hypot(total, diff);
     }
     return a.mkfloat(total);
@@ -446,9 +446,9 @@ static minipy::value fnDist(minipy::cffi& a){
 // fn Fsum
 static minipy::value fnFsum(minipy::cffi& a){
     std::vector<minipy::value> items;
-    a.vm->materializeIterable(a.arg(0), items);
+    a.vmPtr->materializeIterable(a.arg(0), items);
     std::vector<double> values;
-    for (auto& item : items) values.push_back(a.vm->toFloat(item));
+    for (auto& item : items) values.push_back(a.vmPtr->toFloat(item));
     bool hasNan = false, posInf = false, negInf = false;
     double sum = compensatedSum(values, hasNan, posInf, negInf);
     minipy::value result;
@@ -462,15 +462,15 @@ static minipy::value fnFsum(minipy::cffi& a){
 static minipy::value fnSumprod(minipy::cffi& a){
     std::vector<minipy::value> left;
     std::vector<minipy::value> right;
-    a.vm->materializeIterable(a.arg(0), left);
-    a.vm->materializeIterable(a.arg(1), right);
+    a.vmPtr->materializeIterable(a.arg(0), left);
+    a.vmPtr->materializeIterable(a.arg(1), right);
     if (left.size() != right.size()){
-        a.vm->raiseError("ValueError", "Inputs are not the same length");
+        a.vmPtr->raiseError("ValueError", "Inputs are not the same length");
         return a.none();
     }
     std::vector<double> products;
     for (size_t i = 0; i < left.size(); ++i){
-        products.push_back(a.vm->toFloat(left[i]) * a.vm->toFloat(right[i]));
+        products.push_back(a.vmPtr->toFloat(left[i]) * a.vmPtr->toFloat(right[i]));
     }
     bool hasNan = false, posInf = false, negInf = false;
     double sum = compensatedSum(products, hasNan, posInf, negInf);
@@ -485,10 +485,10 @@ static minipy::value fnSumprod(minipy::cffi& a){
 static minipy::value fnIsclose(minipy::cffi& a){
     double x = a.arg_float(0);
     double y = a.arg_float(1);
-    double relTol = a.has_kwarg("rel_tol") ? a.vm->toFloat(a.kwarg("rel_tol")) : 1e-09;
-    double absTol = a.has_kwarg("abs_tol") ? a.vm->toFloat(a.kwarg("abs_tol")) : 0.0;
+    double relTol = a.has_kwarg("rel_tol") ? a.vmPtr->toFloat(a.kwarg("rel_tol")) : 1e-09;
+    double absTol = a.has_kwarg("abs_tol") ? a.vmPtr->toFloat(a.kwarg("abs_tol")) : 0.0;
     if (relTol < 0.0 || absTol < 0.0){
-        a.vm->raiseError("ValueError", "tolerances must be non-negative");
+        a.vmPtr->raiseError("ValueError", "tolerances must be non-negative");
         return a.none();
     }
     if (x == y) return a.mkbool(true);
@@ -523,11 +523,11 @@ static minipy::value fnUlp(minipy::cffi& a){
 static minipy::value fnFrexp(minipy::cffi& a){
     double x = a.arg_float(0);
     if (std::isinf(x) || std::isnan(x)){
-        return a.vm->makeTuple({a.mkfloat(x), a.mkint(0)});
+        return a.vmPtr->makeTuple({a.mkfloat(x), a.mkint(0)});
     }
     int exponent = 0;
     double mantissa = std::frexp(x, &exponent);
-    return a.vm->makeTuple({a.mkfloat(mantissa), a.mkint(exponent)});
+    return a.vmPtr->makeTuple({a.mkfloat(mantissa), a.mkint(exponent)});
 }
 
 // fn Ldexp
@@ -539,7 +539,7 @@ static minipy::value fnLdexp(minipy::cffi& a){
     int exponent = (raw > 100000) ? 100000 : (raw < -100000 ? -100000 : static_cast<int>(raw));
     double result = std::ldexp(x, exponent);
     if (std::isinf(result) && std::isfinite(x)){
-        a.vm->raiseError("OverflowError", "math range error");
+        a.vmPtr->raiseError("OverflowError", "math range error");
         return a.none();
     }
     return a.mkfloat(result);
@@ -550,11 +550,11 @@ static minipy::value fnLdexp(minipy::cffi& a){
 // fn Modf
 static minipy::value fnModf(minipy::cffi& a){
     double x = a.arg_float(0);
-    if (std::isnan(x)) return a.vm->makeTuple({a.mkfloat(x), a.mkfloat(x)});
-    if (std::isinf(x)) return a.vm->makeTuple({a.mkfloat(std::copysign(0.0, x)), a.mkfloat(x)});
+    if (std::isnan(x)) return a.vmPtr->makeTuple({a.mkfloat(x), a.mkfloat(x)});
+    if (std::isinf(x)) return a.vmPtr->makeTuple({a.mkfloat(std::copysign(0.0, x)), a.mkfloat(x)});
     double integerPart = 0.0;
     double fractionalPart = std::modf(x, &integerPart);
-    return a.vm->makeTuple({a.mkfloat(fractionalPart), a.mkfloat(integerPart)});
+    return a.vmPtr->makeTuple({a.mkfloat(fractionalPart), a.mkfloat(integerPart)});
 }
 
 // fn Erf
@@ -575,12 +575,12 @@ static minipy::value fnGamma(minipy::cffi& a){
     if (std::isnan(x)) return a.mkfloat(x);
     if (x == std::numeric_limits<double>::infinity()) return a.mkfloat(x);
     if (std::isinf(x) || x == 0.0 || (x < 0.0 && std::floor(x) == x)){
-        a.vm->raiseError("ValueError", "math domain error");
+        a.vmPtr->raiseError("ValueError", "math domain error");
         return a.none();
     }
     double result = std::tgamma(x);
     if (std::isinf(result) || std::isnan(result)){
-        a.vm->raiseError("OverflowError", "math range error");
+        a.vmPtr->raiseError("OverflowError", "math range error");
         return a.none();
     }
     return a.mkfloat(result);
@@ -594,12 +594,12 @@ static minipy::value fnLgamma(minipy::cffi& a){
     if (std::isnan(x)) return a.mkfloat(x);
     if (x == std::numeric_limits<double>::infinity()) return a.mkfloat(x);
     if (std::isinf(x) || x == 0.0 || (x < 0.0 && std::floor(x) == x)){
-        a.vm->raiseError("ValueError", "math domain error");
+        a.vmPtr->raiseError("ValueError", "math domain error");
         return a.none();
     }
     double result = std::lgamma(x);
     if (std::isinf(result) && std::isfinite(x)){
-        a.vm->raiseError("OverflowError", "math range error");
+        a.vmPtr->raiseError("OverflowError", "math range error");
         return a.none();
     }
     return a.mkfloat(result);
@@ -617,7 +617,7 @@ static minipy::value fnExp2(minipy::cffi& a){
     double x = a.arg_float(0);
     double result = std::exp2(x);
     if (std::isinf(result) && std::isfinite(x)){
-        a.vm->raiseError("OverflowError", "math range error");
+        a.vmPtr->raiseError("OverflowError", "math range error");
         return a.none();
     }
     return a.mkfloat(result);

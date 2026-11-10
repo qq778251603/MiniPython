@@ -352,11 +352,11 @@ static bool packStruct(cffi& a, const StructSpec& spec, const std::vector<value>
                 continue;
             }
             if (field.code == '?'){
-                writeInt(out, offset, 1, a.vm->truthy(item) ? 1 : 0, spec.bigEndian);
+                writeInt(out, offset, 1, a.vmPtr->truthy(item) ? 1 : 0, spec.bigEndian);
                 continue;
             }
             if (field.code == 'e'){
-                uint16_t half = floatToHalf(static_cast<float>(a.vm->toFloat(item)));
+                uint16_t half = floatToHalf(static_cast<float>(a.vmPtr->toFloat(item)));
                 unsigned char bytes[2];
                 if (spec.bigEndian){
                     bytes[0] = static_cast<unsigned char>(half >> 8);
@@ -370,7 +370,7 @@ static bool packStruct(cffi& a, const StructSpec& spec, const std::vector<value>
                 continue;
             }
             if (field.code == 'f'){
-                float f = static_cast<float>(a.vm->toFloat(item));
+                float f = static_cast<float>(a.vmPtr->toFloat(item));
                 unsigned char bytes[4];
                 std::memcpy(bytes, &f, 4);
                 for (size_t k = 0; k < 4; ++k)
@@ -378,7 +378,7 @@ static bool packStruct(cffi& a, const StructSpec& spec, const std::vector<value>
                 continue;
             }
             if (field.code == 'd'){
-                double d = a.vm->toFloat(item);
+                double d = a.vmPtr->toFloat(item);
                 unsigned char bytes[8];
                 std::memcpy(bytes, &d, 8);
                 for (size_t k = 0; k < 8; ++k)
@@ -388,7 +388,7 @@ static bool packStruct(cffi& a, const StructSpec& spec, const std::vector<value>
             bool isSigned = (field.code == 'b' || field.code == 'h' ||
                              field.code == 'i' || field.code == 'l' ||
                              field.code == 'q' || field.code == 'n');
-            long long value = a.vm->toInt(item);
+            long long value = a.vmPtr->toInt(item);
             writeInt(out, offset, field.elemSize, value, spec.bigEndian);
             (void)isSigned;
         }
@@ -480,7 +480,7 @@ static value fnCalcSize(cffi& a){
     StructSpec spec;
     std::string error;
     if (!parseStructFormat(a, rawOf(a.arg(0)), true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     return a.mkint(static_cast<long long>(spec.size));
@@ -493,14 +493,14 @@ static value fnPack(cffi& a){
     StructSpec spec;
     std::string error;
     if (!parseStructFormat(a, rawOf(a.arg(0)), true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::vector<value> rest;
     for (size_t i = 1; i < a.argc(); ++i) rest.push_back(a.arg(i));
     std::string out;
     if (!packStruct(a, spec, rest, 0, out, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     return mkBytes(a, out);
@@ -513,17 +513,17 @@ static value fnUnpack(cffi& a){
     StructSpec spec;
     std::string error;
     if (!parseStructFormat(a, rawOf(a.arg(0)), true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::string raw = rawOf(a.arg(1));
     if (!checkRawLength(a, raw, spec.size, 0, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::vector<value> results;
     unpackStruct(a, spec, raw, 0, results, error);
-    return a.vm->makeTuple(results);
+    return a.vmPtr->makeTuple(results);
 }
 
 // fn Pack Into
@@ -533,27 +533,27 @@ static value fnPackInto(cffi& a){
     StructSpec spec;
     std::string error;
     if (!parseStructFormat(a, rawOf(a.arg(0)), true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     value buffer = a.arg(1);
     long long offset = a.arg_int(2);
     if (buffer.type != "bytearray" && buffer.type != "list"){
-        a.vm->raiseError("error", "pack_into requires a writable buffer");
+        a.vmPtr->raiseError("error", "pack_into requires a writable buffer");
         return a.none();
     }
     std::vector<value> rest;
     for (size_t i = 3; i < a.argc(); ++i) rest.push_back(a.arg(i));
     std::string packed;
     if (!packStruct(a, spec, rest, 0, packed, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     if (buffer.type == "bytearray"){
         auto* raw = static_cast<std::string*>(buffer.ptr);
         if (offset < 0) offset += static_cast<long long>(raw->size());
         if (offset < 0 || static_cast<size_t>(offset) + packed.size() > raw->size()){
-            a.vm->raiseError("error", "pack_into requires a buffer of at least " +
+            a.vmPtr->raiseError("error", "pack_into requires a buffer of at least " +
                                       std::to_string(offset + packed.size()) + " bytes");
             return a.none();
         }
@@ -578,23 +578,23 @@ static value fnUnpackFrom(cffi& a){
     StructSpec spec;
     std::string error;
     if (!parseStructFormat(a, rawOf(a.arg(0)), true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::string raw = rawOf(a.arg(1));
     long long offset = a.argc() >= 3 ? a.arg_int(2) : 0;
     if (offset < 0) offset += static_cast<long long>(raw.size());
     if (offset < 0){
-        a.vm->raiseError("error", "offset must be non-negative");
+        a.vmPtr->raiseError("error", "offset must be non-negative");
         return a.none();
     }
     if (!checkRawLength(a, raw, spec.size, static_cast<size_t>(offset), error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::vector<value> results;
     unpackStruct(a, spec, raw, static_cast<size_t>(offset), results, error);
-    return a.vm->makeTuple(results);
+    return a.vmPtr->makeTuple(results);
 }
 
 // Struct 构造器
@@ -605,7 +605,7 @@ static value fnStructConstructor(cffi& a){
     std::string error;
     std::string format = rawOf(a.arg(0));
     if (!parseStructFormat(a, format, true, spec, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     value obj = a.mkobject(new StructState{spec});
@@ -636,7 +636,7 @@ static value fnStructPack(cffi& a){
     for (size_t i = 0; i < a.argc(); ++i) args.push_back(a.arg(i));
     std::string out, error;
     if (!packStruct(a, state->spec, args, 0, out, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     return mkBytes(a, out);
@@ -651,12 +651,12 @@ static value fnStructUnpack(cffi& a){
     std::string raw = rawOf(a.arg(0));
     std::string error;
     if (!checkRawLength(a, raw, state->spec.size, 0, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     std::vector<value> results;
     unpackStruct(a, state->spec, raw, 0, results, error);
-    return a.vm->makeTuple(results);
+    return a.vmPtr->makeTuple(results);
 }
 
 // Struct.pack_into
@@ -671,14 +671,14 @@ static value fnStructPackInto(cffi& a){
     for (size_t i = 2; i < a.argc(); ++i) rest.push_back(a.arg(i));
     std::string packed, error;
     if (!packStruct(a, state->spec, rest, 0, packed, error)){
-        a.vm->raiseError("error", error);
+        a.vmPtr->raiseError("error", error);
         return a.none();
     }
     if (buffer.type == "bytearray"){
         auto* raw = static_cast<std::string*>(buffer.ptr);
         if (offset < 0) offset += static_cast<long long>(raw->size());
         if (offset < 0 || static_cast<size_t>(offset) + packed.size() > raw->size()){
-            a.vm->raiseError("error", "pack_into requires a buffer of at least " +
+            a.vmPtr->raiseError("error", "pack_into requires a buffer of at least " +
                                       std::to_string(offset + packed.size()) + " bytes");
             return a.none();
         }
@@ -699,12 +699,12 @@ static value fnStructUnpackFrom(cffi& a){
     std::string error;
     if (offset < 0 || !checkRawLength(a, raw, state->spec.size,
                                      static_cast<size_t>(offset), error)){
-        a.vm->raiseError("error", error.empty() ? "offset must be non-negative" : error);
+        a.vmPtr->raiseError("error", error.empty() ? "offset must be non-negative" : error);
         return a.none();
     }
     std::vector<value> results;
     unpackStruct(a, state->spec, raw, static_cast<size_t>(offset), results, error);
-    return a.vm->makeTuple(results);
+    return a.vmPtr->makeTuple(results);
 }
 
 // cffi struct lib

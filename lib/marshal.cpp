@@ -1,4 +1,4 @@
-﻿#include "../cffi.hpp"
+#include "../cffi.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -438,10 +438,10 @@ struct MarshalReader {
 // read all content from a file object
 // ᠪᠠᠶᠢᠲ᠋ ᠡᠴᠡ ᠪᠦᠬᠦ ᠠᠭᠤᠯᠭ᠎ᠠ ᠤᠩᠰᠢᠬᠤ
 static bool readAllFromFile(cffi& a, const value& file, std::string& out){
-    value readFn = a.vm->getAttribute(file, "read");
-    if (readFn.type == "none" || a.vm->hasError()) return false;
-    value result = a.vm->callValue(readFn, {});
-    if (a.vm->hasError()) return false;
+    value readFn = a.vmPtr->getAttribute(file, "read");
+    if (readFn.type == "none" || a.vmPtr->hasError()) return false;
+    value result = a.vmPtr->callValue(readFn, {});
+    if (a.vmPtr->hasError()) return false;
     out = rawOf(result);
     return true;
 }
@@ -450,18 +450,18 @@ static bool readAllFromFile(cffi& a, const value& file, std::string& out){
 // write bytes to a file object
 // ᠪᠠᠶᠢᠲ᠋ ᠳ᠋ᠤ ᠪᠢᠴᠢᠬᠦ
 static bool writeToFile(cffi& a, const value& file, const std::string& raw){
-    value writeFn = a.vm->getAttribute(file, "write");
-    if (writeFn.type == "none" || a.vm->hasError()) return false;
-    a.vm->callValue(writeFn, {mkBytes(a, raw)});
-    return !a.vm->hasError();
+    value writeFn = a.vmPtr->getAttribute(file, "write");
+    if (writeFn.type == "none" || a.vmPtr->hasError()) return false;
+    a.vmPtr->callValue(writeFn, {mkBytes(a, raw)});
+    return !a.vmPtr->hasError();
 }
 
 // dumps
 value fnMarshalDumps(cffi& a){
-    MarshalWriter w{a.vm, "", {}, false, a.arg(0).ptr};
+    MarshalWriter w{a.vmPtr, "", {}, false, a.arg(0).ptr};
     w.w(a.arg(0));
     if (w.bad){
-        a.vm->raiseError("ValueError", "unmarshallable object");
+        a.vmPtr->raiseError("ValueError", "unmarshallable object");
         return a.none();
     }
     return mkBytes(a, w.out);
@@ -470,10 +470,10 @@ value fnMarshalDumps(cffi& a){
 // loads
 value fnMarshalLoads(cffi& a){
     std::string raw = rawOf(a.arg(0));
-    MarshalReader r{a.vm, raw, 0, {}, "", ""};
+    MarshalReader r{a.vmPtr, raw, 0, {}, "", ""};
     value result = r.r();
     if (!r.errType.empty()){
-        a.vm->raiseError(r.errType, r.errMsg);
+        a.vmPtr->raiseError(r.errType, r.errMsg);
         return a.none();
     }
     return result;
@@ -481,10 +481,10 @@ value fnMarshalLoads(cffi& a){
 
 // dump
 value fnMarshalDump(cffi& a){
-    MarshalWriter w{a.vm, "", {}, false, a.arg(0).ptr};
+    MarshalWriter w{a.vmPtr, "", {}, false, a.arg(0).ptr};
     w.w(a.arg(0));
     if (w.bad){
-        a.vm->raiseError("ValueError", "unmarshallable object");
+        a.vmPtr->raiseError("ValueError", "unmarshallable object");
         return a.none();
     }
     if (!writeToFile(a, a.arg(1), w.out)) return a.none();
@@ -495,10 +495,10 @@ value fnMarshalDump(cffi& a){
 value fnMarshalLoad(cffi& a){
     std::string raw;
     if (!readAllFromFile(a, a.arg(0), raw)) return a.none();
-    MarshalReader r{a.vm, raw, 0, {}, "", ""};
+    MarshalReader r{a.vmPtr, raw, 0, {}, "", ""};
     value result = r.r();
     if (!r.errType.empty()){
-        a.vm->raiseError(r.errType, r.errMsg);
+        a.vmPtr->raiseError(r.errType, r.errMsg);
         return a.none();
     }
     return result;

@@ -7,7 +7,7 @@ namespace minipy {
 namespace {
 
 value abstractCtor(cffi& a, const char* name){
-    a.vm->raiseError("TypeError", std::string("Can't instantiate abstract class ") + name);
+    a.vmPtr->raiseError("TypeError", std::string("Can't instantiate abstract class ") + name);
     return a.none();
 }
 

@@ -267,7 +267,7 @@ void freeNode(Node* node){
 
 // 统一执行一项 Node
 value runNode(Node* node, cffi& context){
-    vm* engine = context.vm;
+    vm* engine = context.vmPtr;
     if (!engine) return value();
     if (!node || !node->fn){
         engine->raiseError("RuntimeError", "native callback is not registered");
@@ -368,10 +368,10 @@ EntryPool& entryPool(){
 value dispatchEntry(size_t index, cffi& context){
     auto& pool = entryPool();
     if (index >= pool.nodes.size() || !pool.nodes[index]){
-        if (context.vm){
-            context.vm->raiseError("RuntimeError", "native callback is not registered");
+        if (context.vmPtr){
+            context.vmPtr->raiseError("RuntimeError", "native callback is not registered");
         }
-        return context.vm ? context.vm->makeNone() : value();
+        return context.vmPtr ? context.vmPtr->makeNone() : value();
     }
     return runNode(pool.nodes[index], context);
 }

@@ -283,7 +283,7 @@ value buildPathObjCore(cffi& a, PathState st, bool withRelations){
     std::string root = rootPart(st);
     if (!root.empty()) parts.push_back(a.mkstr(root));
     for (auto& p : st.parts) parts.push_back(a.mkstr(p));
-    inst->attributes["parts"] = a.vm->makeTuple(parts);
+    inst->attributes["parts"] = a.vmPtr->makeTuple(parts);
     inst->attributes["drive"] = a.mkstr(driveOf(st));
     inst->attributes["root"] = a.mkstr(rootOf(st));
     inst->attributes["anchor"] = a.mkstr(driveOf(st) + rootOf(st));
@@ -300,7 +300,7 @@ value buildPathObjCore(cffi& a, PathState st, bool withRelations){
             cur.parts.pop_back();
             pars.push_back(buildPathObjCore(a, cur, false));
         }
-        inst->attributes["parents"] = a.vm->makeTuple(pars);
+        inst->attributes["parents"] = a.vmPtr->makeTuple(pars);
     }
     return obj;
 }
@@ -396,8 +396,8 @@ value makePath(cffi& a, const char* className){
         else if (v.type == "str" && v.ptr) chunks.push_back(*static_cast<std::string*>(v.ptr));
         else if (v.type == "none") continue;
         else {
-            a.vm->raiseError("TypeError",
-                "expected str or PathLike object, got '" + a.vm->pythonTypeName(v) + "'");
+            a.vmPtr->raiseError("TypeError",
+                "expected str or PathLike object, got '" + a.vmPtr->pythonTypeName(v) + "'");
             return a.none();
         }
     }
@@ -434,7 +434,7 @@ static value fnPathRepr(cffi& a){
     auto* st = pathOf(a.self());
     if (!st) return a.mkstr("Path('.')");
     return a.mkstr(concreteClassName(*st) + "(" +
-                   pythonRepr(*a.vm, a.mkstr(joinDisplay(*st))) + ")");
+                   pythonRepr(*a.vmPtr, a.mkstr(joinDisplay(*st))) + ")");
 }
 
 static value fnPathName(cffi& a){
@@ -468,7 +468,7 @@ static value fnPathParts(cffi& a){
         if (!root.empty()) out.push_back(a.mkstr(root));
         for (auto& p : st->parts) out.push_back(a.mkstr(p));
     }
-    return a.vm->makeTuple(out);
+    return a.vmPtr->makeTuple(out);
 }
 
 static value fnPathParent(cffi& a){
@@ -487,7 +487,7 @@ static value fnPathParents(cffi& a){
             out.push_back(buildPathObj(a, cur));
         }
     }
-    return a.vm->makeTuple(out);
+    return a.vmPtr->makeTuple(out);
 }
 
 static value fnPathAsPosix(cffi& a){
@@ -523,7 +523,7 @@ static value fnPathHash(cffi& a){
     if (!st) return a.mkint(0);
     std::string key = joinParts(*st);
     if (st->flavor == "windows") key = lowerCopy(key);
-    return a.mkint(a.vm->hashKey(a.mkstr(key)));
+    return a.mkint(a.vmPtr->hashKey(a.mkstr(key)));
 }
 
 static value fnPathTruediv(cffi& a){
@@ -535,9 +535,9 @@ static value fnPathTruediv(cffi& a){
     if (os) chunk = joinParts(*os);
     else if (other.type == "str" && other.ptr) chunk = *static_cast<std::string*>(other.ptr);
     else {
-        a.vm->raiseError("TypeError",
-            "unsupported operand type(s) for /: '" + a.vm->pythonTypeName(a.self()) +
-            "' and '" + a.vm->pythonTypeName(other) + "'");
+        a.vmPtr->raiseError("TypeError",
+            "unsupported operand type(s) for /: '" + a.vmPtr->pythonTypeName(a.self()) +
+            "' and '" + a.vmPtr->pythonTypeName(other) + "'");
         return a.none();
     }
     PathState joined;
@@ -559,8 +559,8 @@ static value fnPathJoinpath(cffi& a){
         if (os) chunk = joinParts(*os);
         else if (v.type == "str" && v.ptr) chunk = *static_cast<std::string*>(v.ptr);
         else {
-            a.vm->raiseError("TypeError",
-                "expected str or PathLike object, got '" + a.vm->pythonTypeName(v) + "'");
+            a.vmPtr->raiseError("TypeError",
+                "expected str or PathLike object, got '" + a.vmPtr->pythonTypeName(v) + "'");
             return a.none();
         }
         PathState joined;
@@ -577,12 +577,12 @@ static value fnPathWithName(cffi& a){
     auto* st = pathOf(a.self());
     if (!st) return a.none();
     if (st->parts.empty()){
-        a.vm->raiseError("ValueError", "Path has an empty name");
+        a.vmPtr->raiseError("ValueError", "Path has an empty name");
         return a.none();
     }
     std::string name = a.arg_str(0);
     if (name.empty()){
-        a.vm->raiseError("ValueError", "Invalid name ''");
+        a.vmPtr->raiseError("ValueError", "Invalid name ''");
         return a.none();
     }
     PathState out = *st;
@@ -595,12 +595,12 @@ static value fnPathWithSuffix(cffi& a){
     if (!st) return a.none();
     std::string suffix = a.argc() > 0 ? a.arg_str(0) : "";
     if (!suffix.empty() && suffix[0] != '.'){
-        a.vm->raiseError("ValueError", "Invalid suffix '" + suffix + "'");
+        a.vmPtr->raiseError("ValueError", "Invalid suffix '" + suffix + "'");
         return a.none();
     }
     std::string name = nameOf(*st);
     if (name.empty()){
-        a.vm->raiseError("ValueError", "Path has an empty name");
+        a.vmPtr->raiseError("ValueError", "Path has an empty name");
         return a.none();
     }
     PathState out = *st;
@@ -644,9 +644,9 @@ static value fnPathRelativeTo(cffi& a){
     auto* other = pathOf(a.arg(0));
     if (!st || !other) return a.none();
     if (st->prefix != other->prefix || st->parts.size() < other->parts.size()){
-        a.vm->raiseError("ValueError",
-            a.vm->toString(a.self()) + " is not in the subpath of " +
-            a.vm->toString(a.arg(0)));
+        a.vmPtr->raiseError("ValueError",
+            a.vmPtr->toString(a.self()) + " is not in the subpath of " +
+            a.vmPtr->toString(a.arg(0)));
         return a.none();
     }
     bool ci = (st->flavor == "windows");
@@ -654,9 +654,9 @@ static value fnPathRelativeTo(cffi& a){
         bool same = ci ? lowerCopy(st->parts[i]) == lowerCopy(other->parts[i])
                        : st->parts[i] == other->parts[i];
         if (!same){
-            a.vm->raiseError("ValueError",
-                a.vm->toString(a.self()) + " is not in the subpath of " +
-                a.vm->toString(a.arg(0)));
+            a.vmPtr->raiseError("ValueError",
+                a.vmPtr->toString(a.self()) + " is not in the subpath of " +
+                a.vmPtr->toString(a.arg(0)));
             return a.none();
         }
     }
@@ -696,7 +696,7 @@ static value fnPathIterdir(cffi& a){
     std::error_code ec;
     fs::directory_iterator it(toFsPath(*st), ec);
     if (ec){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[WinError 3] The system cannot find the path specified: '" + joinParts(*st) + "'");
         return a.none();
     }
@@ -820,20 +820,20 @@ static value fnPathMkdir(cffi& a){
     bool exists = fs::exists(p, ec);
     if (exists){
         if (!existOk){
-            a.vm->raiseError("FileExistsError",
+            a.vmPtr->raiseError("FileExistsError",
                 "[WinError 183] Cannot create a file when that file already exists: '" +
                 joinParts(*st) + "'");
             return a.none();
         }
         if (!fs::is_directory(p, ec)){
-            a.vm->raiseError("FileExistsError", "File exists: '" + joinParts(*st) + "'");
+            a.vmPtr->raiseError("FileExistsError", "File exists: '" + joinParts(*st) + "'");
         }
         return a.none();
     }
     if (parents) fs::create_directories(p, ec);
     else fs::create_directory(p, ec);
     if (ec){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[WinError 3] The system cannot find the path specified: '" + joinParts(*st) + "'");
     }
     return a.none();
@@ -872,7 +872,7 @@ static value fnPathReadText(cffi& a){
     if (!st) return a.none();
     std::ifstream in(toFsPath(*st), std::ios::binary);
     if (!in.is_open()){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[Errno 2] No such file or directory: '" + joinParts(*st) + "'");
         return a.none();
     }
@@ -883,10 +883,10 @@ static value fnPathReadText(cffi& a){
 static value fnPathWriteText(cffi& a){
     auto* st = pathOf(a.self());
     if (!st) return a.none();
-    std::string text = translateNewlinesOut(a.vm->toString(a.arg(0)));
+    std::string text = translateNewlinesOut(a.vmPtr->toString(a.arg(0)));
     std::ofstream out(toFsPath(*st), std::ios::binary | std::ios::trunc);
     if (!out.is_open()){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[Errno 2] No such file or directory: '" + joinParts(*st) + "'");
         return a.none();
     }
@@ -904,13 +904,13 @@ static value fnPathTouch(cffi& a){
     if (!fs::exists(p, ec)){
         std::ofstream out(p, std::ios::binary | std::ios::app);
         if (!out.is_open()){
-            a.vm->raiseError("FileNotFoundError",
+            a.vmPtr->raiseError("FileNotFoundError",
                 "[Errno 2] No such file or directory: '" + joinParts(*st) + "'");
         }
         return a.none();
     }
     if (!existOk){
-        a.vm->raiseError("FileExistsError", "File exists: '" + joinParts(*st) + "'");
+        a.vmPtr->raiseError("FileExistsError", "File exists: '" + joinParts(*st) + "'");
     }
     return a.none();
 }
@@ -922,7 +922,7 @@ static value fnPathUnlink(cffi& a){
     std::error_code ec;
     fs::remove(toFsPath(*st), ec);
     if (ec && !missingOk){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
             "[WinError 2] The system cannot find the file specified: '" + joinParts(*st) + "'");
     }
     return a.none();
@@ -934,23 +934,23 @@ static value fnPathRmdir(cffi& a){
     std::error_code ec;
     fs::remove(toFsPath(*st), ec);
     if (ec)
-        a.vm->raiseError("OSError", "Cannot remove directory: '" + joinParts(*st) + "'");
+        a.vmPtr->raiseError("OSError", "Cannot remove directory: '" + joinParts(*st) + "'");
     return a.none();
 }
 
 static value fnPathOpen(cffi& a){
     auto* st = pathOf(a.self());
-    ffilib* builtins = a.vm->findCffiLibrary("builtins");
+    ffilib* builtins = a.vmPtr->findCffiLibrary("builtins");
     if (!st || !builtins){
-        a.vm->raiseError("RuntimeError", "open() unavailable");
+        a.vmPtr->raiseError("RuntimeError", "open() unavailable");
         return a.none();
     }
     std::vector<value> args;
     args.push_back(a.mkstr(joinParts(*st)));
     for (size_t i = 0; i < a.argc(); ++i) args.push_back(a.arg(i));
     value result = a.none();
-    if (!cffiCallFunction(*builtins, "open", *a.vm, args, result, a.kwargv)){
-        a.vm->raiseError("RuntimeError", "open() failed");
+    if (!cffiCallFunction(*builtins, "open", *a.vmPtr, args, result, a.kwargv)){
+        a.vmPtr->raiseError("RuntimeError", "open() failed");
         return a.none();
     }
     return result;

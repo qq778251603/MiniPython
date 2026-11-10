@@ -53,7 +53,7 @@ const ffi_class* fracClass(cffi& a){
 
 value makeFrac(cffi& a, long long num, long long den){
     if (den == 0){
-        a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(num) + ", 0)");
+        a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(num) + ", 0)");
         return a.none();
     }
     auto* st = new FracState();
@@ -61,11 +61,11 @@ value makeFrac(cffi& a, long long num, long long den){
     st->den = den;
     normalize(*st);
     const ffi_class* klass = fracClass(a);
-    value obj = a.vm->makeNativeObject(a.library, klass, st);
+    value obj = a.vmPtr->makeNativeObject(a.library, klass, st);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
-        inst->attributes["numerator"] = a.vm->makeInt(st->num);
-        inst->attributes["denominator"] = a.vm->makeInt(st->den);
+        inst->attributes["numerator"] = a.vmPtr->makeInt(st->num);
+        inst->attributes["denominator"] = a.vmPtr->makeInt(st->den);
     }
     return obj;
 }
@@ -235,7 +235,7 @@ value fracBinary(cffi& a, const std::string& op){
         if (op == "*") return a.mkfloat(lv * rv);
         if (op == "/"){
             if (rv == 0.0){
-                a.vm->raiseError("ZeroDivisionError", "float division by zero");
+                a.vmPtr->raiseError("ZeroDivisionError", "float division by zero");
                 return a.none();
             }
             return a.mkfloat(lv / rv);
@@ -243,13 +243,13 @@ value fracBinary(cffi& a, const std::string& op){
         if (op == "//") return a.mkfloat(std::floor(lv / rv));
         if (op == "%") return a.mkfloat(lv - rv * std::floor(lv / rv));
         if (op == "**") return a.mkfloat(std::pow(lv, rv));
-        a.vm->raiseError("TypeError", "unsupported operand type(s)");
+        a.vmPtr->raiseError("TypeError", "unsupported operand type(s)");
         return a.none();
     }
     FracState rs;
     std::string errT, errM;
     if (!valueToFrac(a, other, rs, errT, errM)){
-        a.vm->raiseError(errT, errM);
+        a.vmPtr->raiseError(errT, errM);
         return a.none();
     }
     if (op == "+") return makeFrac(a, ls->num * rs.den + rs.num * ls->den, ls->den * rs.den);
@@ -257,7 +257,7 @@ value fracBinary(cffi& a, const std::string& op){
     if (op == "*") return makeFrac(a, ls->num * rs.num, ls->den * rs.den);
     if (op == "/"){
         if (rs.num == 0){
-            a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
+            a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
             return a.none();
         }
         return makeFrac(a, ls->num * rs.den, ls->den * rs.num);
@@ -267,7 +267,7 @@ value fracBinary(cffi& a, const std::string& op){
         // floor(ad / bc)
         // floor(ad / bc)
         if (rs.num == 0){
-            a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
+            a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
             return a.none();
         }
         long long n = ls->num * rs.den;
@@ -278,7 +278,7 @@ value fracBinary(cffi& a, const std::string& op){
     }
     if (op == "%"){
         if (rs.num == 0){
-            a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
+            a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
             return a.none();
         }
         long long n = ls->num * rs.den;
@@ -305,7 +305,7 @@ value fracBinary(cffi& a, const std::string& op){
             return makeFrac(a, rn, rd);
         }
         if (ls->num == 0){
-            a.vm->raiseError("ZeroDivisionError", "Fraction(0, 0)");
+            a.vmPtr->raiseError("ZeroDivisionError", "Fraction(0, 0)");
             return a.none();
         }
         long long rn = 1, rd = 1;
@@ -315,7 +315,7 @@ value fracBinary(cffi& a, const std::string& op){
         }
         return makeFrac(a, rd, rn);
     }
-    a.vm->raiseError("TypeError", "unsupported operand type(s)");
+    a.vmPtr->raiseError("TypeError", "unsupported operand type(s)");
     return a.none();
 }
 
@@ -338,7 +338,7 @@ value fracCompare(cffi& a, const std::string& op){
     if (!valueToFrac(a, other, rs, errT, errM)){
         if (op == "==") return a.mkbool(false);
         if (op == "!=") return a.mkbool(true);
-        a.vm->raiseError("TypeError", "'" + op + "' not supported between instances of 'Fraction' and '" +
+        a.vmPtr->raiseError("TypeError", "'" + op + "' not supported between instances of 'Fraction' and '" +
                          (other.type == "none" ? "NoneType" : other.type) + "'");
         return a.none();
     }
@@ -366,23 +366,23 @@ static value fnFracCtor(cffi& a){
     } else if (a.argc() == 1){
         std::string errT, errM;
         if (!valueToFrac(a, a.arg(0), st, errT, errM)){
-            a.vm->raiseError(errT, errM);
+            a.vmPtr->raiseError(errT, errM);
             return a.none();
         }
     } else if (a.argc() == 2){
         value n = a.arg(0), d = a.arg(1);
         if ((n.type != "int" && n.type != "bool") || (d.type != "int" && d.type != "bool")){
-            a.vm->raiseError("TypeError", "both arguments should be Rational");
+            a.vmPtr->raiseError("TypeError", "both arguments should be Rational");
             return a.none();
         }
         st.num = *static_cast<long long*>(n.ptr);
         st.den = *static_cast<long long*>(d.ptr);
         if (st.den == 0){
-            a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(st.num) + ", 0)");
+            a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(st.num) + ", 0)");
             return a.none();
         }
     } else {
-        a.vm->raiseError("TypeError", "Fraction expected at most 2 arguments, got " +
+        a.vmPtr->raiseError("TypeError", "Fraction expected at most 2 arguments, got " +
                                       std::to_string(a.argc()));
         return a.none();
     }
@@ -391,8 +391,8 @@ static value fnFracCtor(cffi& a){
     value obj = a.mkobject(heapSt);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
-        inst->attributes["numerator"] = a.vm->makeInt(st.num);
-        inst->attributes["denominator"] = a.vm->makeInt(st.den);
+        inst->attributes["numerator"] = a.vmPtr->makeInt(st.num);
+        inst->attributes["denominator"] = a.vmPtr->makeInt(st.den);
     }
     return obj;
 }
@@ -415,7 +415,7 @@ static value fnFracLimitDen(cffi& a){
     if (!st) return a.none();
     long long maxDen = a.argc() > 0 ? a.arg_int(0) : 1000000;
     if (maxDen < 1){
-        a.vm->raiseError("ValueError", "max_denominator should be at least 1");
+        a.vmPtr->raiseError("ValueError", "max_denominator should be at least 1");
         return a.none();
     }
     if (st->den <= maxDen) return makeFrac(a, st->num, st->den);
@@ -455,8 +455,8 @@ static value fnFracLimitDen(cffi& a){
 
 static value fnFracAsRatio(cffi& a){
     auto* st = fracOf(a.self());
-    if (!st) return a.vm->makeTuple({a.mkint(0), a.mkint(1)});
-    return a.vm->makeTuple({a.mkint(st->num), a.mkint(st->den)});
+    if (!st) return a.vmPtr->makeTuple({a.mkint(0), a.mkint(1)});
+    return a.vmPtr->makeTuple({a.mkint(st->num), a.mkint(st->den)});
 }
 
 static value fnFracFromFloat(cffi& a){
@@ -468,13 +468,13 @@ static value fnFracFromFloat(cffi& a){
         auto* inst = static_cast<ffi_instance*>(target.ptr);
         if (inst->handle == nullptr && a.argc() > 0) target = a.arg(0);
     }
-    double x = a.vm->toFloat(target);
+    double x = a.vmPtr->toFloat(target);
     long long n, d;
     if (!floatToRatio(x, n, d)){
         if (std::isnan(x)){
-            a.vm->raiseError("ValueError", "cannot convert NaN to integer ratio");
+            a.vmPtr->raiseError("ValueError", "cannot convert NaN to integer ratio");
         } else {
-            a.vm->raiseError("OverflowError", "cannot convert Infinity to integer ratio");
+            a.vmPtr->raiseError("OverflowError", "cannot convert Infinity to integer ratio");
         }
         return a.none();
     }
@@ -527,11 +527,11 @@ static value fnFracMod(cffi& a){
     FracState rs;
     std::string errT, errM;
     if (!valueToFrac(a, a.arg(0), rs, errT, errM)){
-        a.vm->raiseError(errT, errM);
+        a.vmPtr->raiseError(errT, errM);
         return a.none();
     }
     if (rs.num == 0){
-        a.vm->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
+        a.vmPtr->raiseError("ZeroDivisionError", "Fraction(" + std::to_string(ls->num) + ", 0)");
         return a.none();
     }
     long long n = ls->num * rs.den;
@@ -554,7 +554,7 @@ static value fnFracRsub(cffi& a){
     FracState rs;
     std::string errT, errM;
     if (!valueToFrac(a, a.arg(0), rs, errT, errM)){
-        a.vm->raiseError(errT, errM);
+        a.vmPtr->raiseError(errT, errM);
         return a.none();
     }
     return makeFrac(a, rs.num * ls->den - ls->num * rs.den, ls->den * rs.den);
@@ -564,13 +564,13 @@ static value fnFracRdiv(cffi& a){
     auto* ls = fracOf(a.self());
     if (!ls) return a.none();
     if (ls->num == 0){
-        a.vm->raiseError("ZeroDivisionError", "Fraction(0, 1)");
+        a.vmPtr->raiseError("ZeroDivisionError", "Fraction(0, 1)");
         return a.none();
     }
     FracState rs;
     std::string errT, errM;
     if (!valueToFrac(a, a.arg(0), rs, errT, errM)){
-        a.vm->raiseError(errT, errM);
+        a.vmPtr->raiseError(errT, errM);
         return a.none();
     }
     return makeFrac(a, rs.num * ls->den, rs.den * ls->num);
@@ -587,7 +587,7 @@ static value fnFracHash(cffi& a){
     auto* st = fracOf(a.self());
     if (!st) return a.mkint(0);
     double f = static_cast<double>(st->num) / static_cast<double>(st->den);
-    return a.mkint(a.vm->hashKey(a.vm->makeFloat(f)));
+    return a.mkint(a.vmPtr->hashKey(a.vmPtr->makeFloat(f)));
 }
 
 // cffi fractions 库

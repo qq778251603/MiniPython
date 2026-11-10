@@ -1,4 +1,4 @@
-﻿#include "../cffi.hpp"
+#include "../cffi.hpp"
 
 #include <cstdio>
 #include <ctime>
@@ -101,8 +101,8 @@ std::string levelName(int level){
 // Name or number to level number
 // ᠨᠡᠷ᠎ᠡ/ᠲᠣᠭ᠎ᠠ → ᠲᠥᠪᠰᠢᠨ
 int levelFrom(cffi& a, const value& v){
-    if (v.type == "int") return static_cast<int>(a.vm->toInt(v));
-    std::string text = a.vm->toString(v);
+    if (v.type == "int") return static_cast<int>(a.vmPtr->toInt(v));
+    std::string text = a.vmPtr->toString(v);
     if (text == "DEBUG") return LVL_DEBUG;
     if (text == "INFO") return LVL_INFO;
     if (text == "WARNING" || text == "WARN") return LVL_WARNING;
@@ -150,24 +150,24 @@ std::string percentFormat(cffi& a, const std::string& fmt,
         std::string spec = "%" + fmt.substr(i + 1, j - i - 1) + conv;
         char buf[512];
         switch (conv){
-            case 's': out += a.vm->toString(v); break;
-            case 'r': out += pythonRepr(*a.vm, v); break;
+            case 's': out += a.vmPtr->toString(v); break;
+            case 'r': out += pythonRepr(*a.vmPtr, v); break;
             case 'd': case 'i': case 'u': {
                 std::snprintf(buf, sizeof(buf), spec.c_str(),
-                              static_cast<int>(a.vm->toInt(v)));
+                              static_cast<int>(a.vmPtr->toInt(v)));
                 out += buf; break;
             }
             case 'x': {
                 std::snprintf(buf, sizeof(buf), spec.c_str(),
-                              static_cast<unsigned int>(a.vm->toInt(v)));
+                              static_cast<unsigned int>(a.vmPtr->toInt(v)));
                 out += buf; break;
             }
             case 'f': case 'e': case 'g': {
-                std::snprintf(buf, sizeof(buf), spec.c_str(), a.vm->toFloat(v));
+                std::snprintf(buf, sizeof(buf), spec.c_str(), a.vmPtr->toFloat(v));
                 out += buf; break;
             }
             default:
-                out += a.vm->toString(v);
+                out += a.vmPtr->toString(v);
                 break;
         }
         i = j;
@@ -181,7 +181,7 @@ std::string percentFormat(cffi& a, const std::string& fmt,
 // self ᠡᠴᠡ handler ᠪᠠᠶᠢᠳᠠᠯ ᠢ ᠠᠪᠬᠤ
 int handlerLevel(cffi& a, const value& self){
     value lvl = a.attr(self, "level");
-    if (lvl.type == "int") return static_cast<int>(a.vm->toInt(lvl));
+    if (lvl.type == "int") return static_cast<int>(a.vmPtr->toInt(lvl));
     return 0;
 }
 
@@ -203,7 +203,7 @@ value makeRecord(cffi& a, const std::string& loggerName, int level,
     put("msg", a.mkstr(msg));
     put("message", a.mkstr(message));
     std::vector<value> argItems(extraArgs.begin(), extraArgs.end());
-    value argTuple = a.vm->makeTuple(argItems);
+    value argTuple = a.vmPtr->makeTuple(argItems);
     put("args", argTuple);
     put("created", a.mkfloat(created));
     put("msecs", a.mkfloat(0));
@@ -225,8 +225,8 @@ std::string recordStr(cffi& a, const value& record, const char* key){
     if (record.type != "dict" || !record.ptr) return "";
     auto* items = static_cast<dict_t*>(record.ptr);
     for (auto& kv : *items){
-        if (kv.first.type == "str" && a.vm->toString(kv.first) == key){
-            return a.vm->toString(kv.second);
+        if (kv.first.type == "str" && a.vmPtr->toString(kv.first) == key){
+            return a.vmPtr->toString(kv.second);
         }
     }
     return "";
@@ -302,7 +302,7 @@ std::string makeAsctime(const std::string& datefmt){
 // Emit one record through the handler (dispatch by stream type)
 // handler ᠠ᠋ᠴᠠ ᠪᠢᠴᠢᠭ ᠢ ᠭᠠᠷᠤᠯᠭᠠᠬᠤ
 void handlerEmit(cffi& a, const value& handler, const std::string& text){
-    std::string target = a.vm->toString(a.attr(handler, "_stream"));
+    std::string target = a.vmPtr->toString(a.attr(handler, "_stream"));
     if (target == "stdout"){
         std::cout << text << "\n";
         std::cout.flush();
@@ -332,8 +332,8 @@ void handlerHandle(cffi& a, const value& handler, const value& record){
     bool formatted = false;
     if (formatter.type == "native_object" && formatter.ptr){
         value result;
-        if (cffiCallMethod(*a.vm, formatter, "format", {record}, result)){
-            text = a.vm->toString(result);
+        if (cffiCallMethod(*a.vmPtr, formatter, "format", {record}, result)){
+            text = a.vmPtr->toString(result);
             formatted = true;
         }
     }
@@ -380,7 +380,7 @@ int effectiveLevel(LoggerState* logger){
 // ᠶᠢᠨᠢᠰ ᠡᠴᠡ LoggerState ᠢ ᠠᠪᠬᠤ
 LoggerState* stateOf(cffi& a, const value& self){
     value nameVal = a.attr(self, "name");
-    return loggerFor(*a.vm, a.vm->toString(nameVal));
+    return loggerFor(*a.vmPtr, a.vmPtr->toString(nameVal));
 }
 
 // 通用 log 实现
@@ -402,7 +402,7 @@ value loggerCtor(cffi& a){
     value obj = a.mkobject(nullptr);
     auto* inst = static_cast<ffi_instance*>(obj.ptr);
     std::string name = a.argc() > 0 ? a.arg_str(0) : "root";
-    LoggerState* st = loggerFor(*a.vm, name);
+    LoggerState* st = loggerFor(*a.vmPtr, name);
     inst->attributes["name"] = a.mkstr(name);
     inst->attributes["level"] = a.mkint(st->level);
     inst->attributes["propagate"] = a.mkbool(true);
@@ -442,12 +442,12 @@ value loggerRemoveHandler(cffi& a){
     LoggerState* st = stateOf(a, a.self());
     value target = a.arg(0);
     for (auto it = st->handlers.begin(); it != st->handlers.end(); ++it){
-        if (a.vm->valuesEqual(*it, target)){ st->handlers.erase(it); break; }
+        if (a.vmPtr->valuesEqual(*it, target)){ st->handlers.erase(it); break; }
     }
     if (st->pyHandlers.type == "list" && st->pyHandlers.ptr){
         auto* items = static_cast<std::vector<value>*>(st->pyHandlers.ptr);
         for (auto it = items->begin(); it != items->end(); ++it){
-            if (a.vm->valuesEqual(*it, target)){ items->erase(it); break; }
+            if (a.vmPtr->valuesEqual(*it, target)){ items->erase(it); break; }
         }
     }
     return a.none();
@@ -505,7 +505,7 @@ value streamHandlerCtor(cffi& a){
     std::string stream = "stderr";
     if (a.has_kwarg("stream")){
         value s = a.kwarg("stream");
-        stream = a.vm->toString(s);
+        stream = a.vmPtr->toString(s);
         if (stream.find("stderr") != std::string::npos) stream = "stderr";
         else if (stream.find("stdout") != std::string::npos) stream = "stdout";
     } else if (a.argc() > 0){
@@ -551,8 +551,8 @@ value handlerEmitMethod(cffi& a){
     std::string text;
     if (formatter.type == "native_object" && formatter.ptr){
         value result;
-        if (cffiCallMethod(*a.vm, formatter, "format", {record}, result)){
-            text = a.vm->toString(result);
+        if (cffiCallMethod(*a.vmPtr, formatter, "format", {record}, result)){
+            text = a.vmPtr->toString(result);
         }
     }
     if (text.empty()) text = recordStr(a, record, "message");
@@ -581,18 +581,18 @@ value formatterFormat(cffi& a){
     value record = a.arg(0);
     value fmtVal = a.attr("_fmt");
     std::string fmt = fmtVal.type == "none" || fmtVal.type == ""
-        ? "%(message)s" : a.vm->toString(fmtVal);
+        ? "%(message)s" : a.vmPtr->toString(fmtVal);
     // 先算 asctime (惰性, CPython 行为)
     // Compute asctime lazily (CPython behavior)
     // asctime ᠢ ᠲᠣᠳᠣᠷᠬᠠᠶᠢᠯᠠᠬᠤ
     if (fmt.find("%(asctime)") != std::string::npos){
         value datefmt = a.attr("_datefmt");
-        std::string df = datefmt.type == "none" ? "" : a.vm->toString(datefmt);
+        std::string df = datefmt.type == "none" ? "" : a.vmPtr->toString(datefmt);
         std::string asc = makeAsctime(df);
         if (record.type == "dict" && record.ptr){
             auto* items = static_cast<dict_t*>(record.ptr);
             for (auto& kv : *items){
-                if (kv.first.type == "str" && a.vm->toString(kv.first) == "asctime"){
+                if (kv.first.type == "str" && a.vmPtr->toString(kv.first) == "asctime"){
                     kv.second = a.mkstr(asc);
                 }
             }
@@ -603,7 +603,7 @@ value formatterFormat(cffi& a){
 
 value formatterFormatTime(cffi& a){
     value datefmt = a.attr("_datefmt");
-    std::string df = datefmt.type == "none" ? "" : a.vm->toString(datefmt);
+    std::string df = datefmt.type == "none" ? "" : a.vmPtr->toString(datefmt);
     return a.mkstr(makeAsctime(df));
 }
 
@@ -611,15 +611,15 @@ value formatterFormatTime(cffi& a){
 
 value fnGetLogger(cffi& a){
     std::string name = a.argc() > 0 && a.arg(0).type != "none" ? a.arg_str(0) : "root";
-    loggerFor(*a.vm, name);
+    loggerFor(*a.vmPtr, name);
     // 返回一个新的 Logger 实例包装
     // Return a new Logger instance wrapper
     // Logger ᠶᠢᠨᠢᠰ ᠢ ᠪᠤᠴᠠᠶ᠎ᠠ
     auto classIt = a.library->classes.find("Logger");
-    value inst = a.vm->makeNativeObject(a.library, &classIt->second, nullptr);
+    value inst = a.vmPtr->makeNativeObject(a.library, &classIt->second, nullptr);
     auto* ffiInst = static_cast<ffi_instance*>(inst.ptr);
     ffiInst->attributes["name"] = a.mkstr(name);
-    LoggerState* st = loggerFor(*a.vm, name);
+    LoggerState* st = loggerFor(*a.vmPtr, name);
     ffiInst->attributes["level"] = a.mkint(st->level);
     ffiInst->attributes["propagate"] = a.mkbool(true);
     ffiInst->attributes["handlers"] = st->pyHandlers;
@@ -632,8 +632,8 @@ value fnRoot(cffi& a);
 // Module-level log shortcuts
 // ᠮᠣᠳᠤᠯᠢ ᠲᠣᠪᠴᠢᠶ᠎ᠠ
 value moduleLogCommon(cffi& a, int fixedLevel, bool levelArg){
-    LoggingState& st = *stateFor(*a.vm);
-    LoggerState* root = loggerFor(*a.vm, "root");
+    LoggingState& st = *stateFor(*a.vmPtr);
+    LoggerState* root = loggerFor(*a.vmPtr, "root");
     // CPython: 无 handler 时隐式 basicConfig
     // CPython: implicit basicConfig when no handlers
     // CPython: handler ᠦᠭᠡᠢ ᠪᠣᠯ basicConfig
@@ -642,10 +642,10 @@ value moduleLogCommon(cffi& a, int fixedLevel, bool levelArg){
         // Build default StreamHandler + Formatter
         // ᠠᠩᠬᠠᠷ StreamHandler + Formatter
         auto& classes = a.library->classes;
-        value handler = a.vm->makeNativeObject(a.library, &classes.at("StreamHandler"), nullptr);
+        value handler = a.vmPtr->makeNativeObject(a.library, &classes.at("StreamHandler"), nullptr);
         auto* hi = static_cast<ffi_instance*>(handler.ptr);
         hi->attributes["level"] = a.mkint(0);
-        value formatter = a.vm->makeNativeObject(a.library, &classes.at("Formatter"), nullptr);
+        value formatter = a.vmPtr->makeNativeObject(a.library, &classes.at("Formatter"), nullptr);
         auto* fi = static_cast<ffi_instance*>(formatter.ptr);
         fi->attributes["_fmt"] = a.mkstr("%(levelname)s:%(name)s:%(message)s");
         fi->attributes["_datefmt"] = a.none();
@@ -677,15 +677,15 @@ value fnException(cffi& a){ return moduleLogCommon(a, LVL_ERROR, false); }
 // basicConfig(**kwargs): filename/format/level/datefmt/force
 // basicConfig(**kwargs)
 value fnBasicConfig(cffi& a){
-    LoggingState& st = *stateFor(*a.vm);
-    LoggerState* root = loggerFor(*a.vm, "root");
+    LoggingState& st = *stateFor(*a.vmPtr);
+    LoggerState* root = loggerFor(*a.vmPtr, "root");
     bool force = a.kwarg_bool("force", false);
     if (!st.root->handlers.empty() && !force) return a.none();
     if (force) st.root->handlers.clear();
 
     auto& classes = a.library->classes;
     bool useFile = a.has_kwarg("filename");
-    value handler = a.vm->makeNativeObject(
+    value handler = a.vmPtr->makeNativeObject(
         a.library, &classes.at(useFile ? "FileHandler" : "StreamHandler"), nullptr);
     auto* hi = static_cast<ffi_instance*>(handler.ptr);
     hi->attributes["level"] = a.mkint(0);
@@ -698,7 +698,7 @@ value fnBasicConfig(cffi& a){
         hi->attributes["_stream"] = a.mkstr("stderr");
     }
     std::string fmt = a.kwarg_str("format", "%(levelname)s:%(name)s:%(message)s");
-    value formatter = a.vm->makeNativeObject(a.library, &classes.at("Formatter"), nullptr);
+    value formatter = a.vmPtr->makeNativeObject(a.library, &classes.at("Formatter"), nullptr);
     auto* fi = static_cast<ffi_instance*>(formatter.ptr);
     fi->attributes["_fmt"] = a.mkstr(fmt);
     if (a.has_kwarg("datefmt")) fi->attributes["_datefmt"] = a.kwarg("datefmt");
@@ -714,8 +714,8 @@ value fnBasicConfig(cffi& a){
 
 value fnGetLevelName(cffi& a){
     value v = a.arg(0);
-    if (v.type == "int") return a.mkstr(levelName(static_cast<int>(a.vm->toInt(v))));
-    return a.mkstr("Level " + a.vm->toString(v));
+    if (v.type == "int") return a.mkstr(levelName(static_cast<int>(a.vmPtr->toInt(v))));
+    return a.mkstr("Level " + a.vmPtr->toString(v));
 }
 
 value fnAddLevelName(cffi& a){ return a.none(); }
@@ -723,7 +723,7 @@ value fnAddLevelName(cffi& a){ return a.none(); }
 value fnDisable(cffi& a){ return a.none(); }
 
 value fnShutdown(cffi& a){
-    LoggingState& st = *stateFor(*a.vm);
+    LoggingState& st = *stateFor(*a.vmPtr);
     if (st.root) st.root->handlers.clear();
     return a.none();
 }
@@ -733,12 +733,12 @@ value fnMakeLogRecord(cffi& a){
 }
 
 value dataRoot(cffi& a){
-    loggerFor(*a.vm, "root");
+    loggerFor(*a.vmPtr, "root");
     auto classIt = a.library->classes.find("Logger");
-    value inst = a.vm->makeNativeObject(a.library, &classIt->second, nullptr);
+    value inst = a.vmPtr->makeNativeObject(a.library, &classIt->second, nullptr);
     auto* ffiInst = static_cast<ffi_instance*>(inst.ptr);
     ffiInst->attributes["name"] = a.mkstr("root");
-    ffiInst->attributes["level"] = a.mkint(loggerFor(*a.vm, "root")->level);
+    ffiInst->attributes["level"] = a.mkint(loggerFor(*a.vmPtr, "root")->level);
     ffiInst->attributes["propagate"] = a.mkbool(true);
     return inst;
 }

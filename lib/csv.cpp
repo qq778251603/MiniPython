@@ -164,15 +164,15 @@ bool readDialectAttrs(cffi& a, const value& obj, Dialect& d){
     v = a.attr(obj, "escapechar");
     if (!singleChar(v, d.escapechar, d.hasEscapechar)) return false;
     v = a.attr(obj, "doublequote");
-    if (v.type != "none") d.doublequote = a.vm->truthy(v);
+    if (v.type != "none") d.doublequote = a.vmPtr->truthy(v);
     v = a.attr(obj, "skipinitialspace");
-    if (v.type != "none") d.skipinitialspace = a.vm->truthy(v);
+    if (v.type != "none") d.skipinitialspace = a.vmPtr->truthy(v);
     v = a.attr(obj, "lineterminator");
     if (v.type == "str" && v.ptr) d.lineterminator = *static_cast<std::string*>(v.ptr);
     v = a.attr(obj, "quoting");
-    if (v.type != "none") d.quoting = a.vm->toInt(v);
+    if (v.type != "none") d.quoting = a.vmPtr->toInt(v);
     v = a.attr(obj, "strict");
-    if (v.type != "none") d.strict = a.vm->truthy(v);
+    if (v.type != "none") d.strict = a.vmPtr->truthy(v);
     return true;
 }
 
@@ -215,14 +215,14 @@ bool applyFmtparams(cffi& a, Dialect& d){
     if (a.has_kwarg("escapechar")){
         if (!singleChar(a.kwarg("escapechar"), d.escapechar, d.hasEscapechar)) return false;
     }
-    if (a.has_kwarg("doublequote")) d.doublequote = a.vm->truthy(a.kwarg("doublequote"));
-    if (a.has_kwarg("skipinitialspace")) d.skipinitialspace = a.vm->truthy(a.kwarg("skipinitialspace"));
+    if (a.has_kwarg("doublequote")) d.doublequote = a.vmPtr->truthy(a.kwarg("doublequote"));
+    if (a.has_kwarg("skipinitialspace")) d.skipinitialspace = a.vmPtr->truthy(a.kwarg("skipinitialspace"));
     if (a.has_kwarg("lineterminator")){
         value v = a.kwarg("lineterminator");
         if (v.type == "str" && v.ptr) d.lineterminator = *static_cast<std::string*>(v.ptr);
     }
     if (a.has_kwarg("quoting")) d.quoting = a.kwarg_int("quoting", d.quoting);
-    if (a.has_kwarg("strict")) d.strict = a.vm->truthy(a.kwarg("strict"));
+    if (a.has_kwarg("strict")) d.strict = a.vmPtr->truthy(a.kwarg("strict"));
     return true;
 }
 
@@ -231,15 +231,15 @@ bool applyFmtparams(cffi& a, Dialect& d){
 // ᠠᠶᠠᠯᠭᠤ ᠶᠢ ᠰᠢᠯᠢᠳᠭᠡᠬᠦ
 bool validateDialect(cffi& a, const Dialect& d){
     if (d.delimiter.size() != 1){
-        a.vm->raiseError("Error", "\"delimiter\" must be a 1-character string");
+        a.vmPtr->raiseError("Error", "\"delimiter\" must be a 1-character string");
         return false;
     }
     if (!d.hasQuotechar && d.quoting != quoteNone){
-        a.vm->raiseError("Error", "quotechar must be set if quoting enabled");
+        a.vmPtr->raiseError("Error", "quotechar must be set if quoting enabled");
         return false;
     }
     if (d.quoting < quoteMinimal || d.quoting > quoteNotNull){
-        a.vm->raiseError("Error", "bad \"quoting\" value");
+        a.vmPtr->raiseError("Error", "bad \"quoting\" value");
         return false;
     }
     return true;
@@ -251,7 +251,7 @@ bool validateDialect(cffi& a, const Dialect& d){
 value makeDialectObject(cffi& a, const Dialect& d){
     auto it = a.library->classes.find("Dialect");
     if (it == a.library->classes.end()) return a.none();
-    value obj = a.vm->makeNativeObject(a.library, &it->second, new Dialect(d));
+    value obj = a.vmPtr->makeNativeObject(a.library, &it->second, new Dialect(d));
     publishDialect(a, obj, d);
     return obj;
 }
@@ -262,7 +262,7 @@ value makeDialectObject(cffi& a, const Dialect& d){
 value makeObjectOf(cffi& a, const std::string& className, void* handle){
     auto it = a.library->classes.find(className);
     if (it == a.library->classes.end()) return a.none();
-    return a.vm->makeNativeObject(a.library, &it->second, handle);
+    return a.vmPtr->makeNativeObject(a.library, &it->second, handle);
 }
 
 // 收集行
@@ -271,9 +271,9 @@ value makeObjectOf(cffi& a, const std::string& className, void* handle){
 bool collectLines(cffi& a, const value& source, std::vector<std::string>& lines,
                   std::string& error){
     std::vector<value> items;
-    a.vm->materializeIterable(source, items);
-    if (a.vm->hasError()){
-        a.vm->clearErr();
+    a.vmPtr->materializeIterable(source, items);
+    if (a.vmPtr->hasError()){
+        a.vmPtr->clearErr();
         error = "iterable expected";
         return false;
     }
@@ -284,7 +284,7 @@ bool collectLines(cffi& a, const value& source, std::vector<std::string>& lines,
             error = "iterator should return strings, not bytes (the file should be opened in text mode)";
             return false;
         } else {
-            error = "iterator should return strings, not " + a.vm->pythonTypeName(item) +
+            error = "iterator should return strings, not " + a.vmPtr->pythonTypeName(item) +
                     " (the file should be opened in text mode)";
             return false;
         }
@@ -454,7 +454,7 @@ value buildReader(cffi& a, const value& source, std::size_t dialectIndex,
     if (!applyFmtparams(a, d)){ error = "bad dialect parameter"; return a.none(); }
     if (!validateDialect(a, d)) return a.none();
     auto* state = new ReaderState();
-    if (!parseCsv(*a.vm, lines, d, state->rows, state->rowLines, error)){
+    if (!parseCsv(*a.vmPtr, lines, d, state->rows, state->rowLines, error)){
         delete state;
         return a.none();
     }
@@ -576,23 +576,23 @@ bool formatField(vm& vm, const value& field, const Dialect& d, std::string& out,
 bool writeRow(cffi& a, const Dialect& dialect, const value& target, const value& row,
               long long& written, std::string& error){
     std::vector<value> fields;
-    a.vm->materializeIterable(row, fields);
-    if (a.vm->hasError()){
-        a.vm->clearErr();
+    a.vmPtr->materializeIterable(row, fields);
+    if (a.vmPtr->hasError()){
+        a.vmPtr->clearErr();
         error = "iterable expected";
         return false;
     }
     std::string line;
     for (std::size_t i = 0; i < fields.size(); ++i){
         if (i > 0) line += dialect.delimiter;
-        if (!formatField(*a.vm, fields[i], dialect, line, error)) return false;
+        if (!formatField(*a.vmPtr, fields[i], dialect, line, error)) return false;
     }
     line += dialect.lineterminator;
     value result;
-    bool ok = cffiCallMethod(*a.vm, target, "write", {a.mkstr(line)}, result);
+    bool ok = cffiCallMethod(*a.vmPtr, target, "write", {a.mkstr(line)}, result);
     if (!ok){
-        a.vm->clearErr();
-        error = "argument of type '" + a.vm->pythonTypeName(target) +
+        a.vmPtr->clearErr();
+        error = "argument of type '" + a.vmPtr->pythonTypeName(target) +
                 "' is not iterable";
         return false;
     }
@@ -605,13 +605,13 @@ bool writeRow(cffi& a, const Dialect& dialect, const value& target, const value&
 // reader ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 value fnReaderCtor(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "reader() missing required argument: 'csvfile'");
+        a.vmPtr->raiseError("TypeError", "reader() missing required argument: 'csvfile'");
         return a.none();
     }
     std::string error;
     value obj = buildReader(a, a.arg(0), 1, error);
     if (!error.empty()){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     return obj;
@@ -622,13 +622,13 @@ value fnReaderCtor(cffi& a){
 // writer ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 value fnWriterCtor(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "writer() missing required argument: 'csvfile'");
+        a.vmPtr->raiseError("TypeError", "writer() missing required argument: 'csvfile'");
         return a.none();
     }
     Dialect d = excelDialect();
     std::string error;
     if (!resolveDialect(a, 1, d, error) || !applyFmtparams(a, d)){
-        a.vm->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
+        a.vmPtr->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
         return a.none();
     }
     if (!validateDialect(a, d)) return a.none();
@@ -659,7 +659,7 @@ value fnReaderNext(cffi& a){
     auto* inst = static_cast<ffi_instance*>(self.ptr);
     auto* state = static_cast<ReaderState*>(inst->handle);
     if (!state || state->index >= state->rows.size()){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     state->lineNum = state->rowLines[state->index];
@@ -679,7 +679,7 @@ value fnWriterRow(cffi& a){
     long long written = 0;
     std::string error;
     if (!writeRow(a, state->dialect, state->target, a.arg(0), written, error)){
-        a.vm->raiseError(error.find("not iterable") != std::string::npos ? "TypeError" : "Error",
+        a.vmPtr->raiseError(error.find("not iterable") != std::string::npos ? "TypeError" : "Error",
                          error);
         return a.none();
     }
@@ -694,13 +694,13 @@ value fnWriterRows(cffi& a){
     auto* inst = static_cast<ffi_instance*>(self.ptr);
     auto* state = static_cast<WriterState*>(inst->handle);
     std::vector<value> rows;
-    a.vm->materializeIterable(a.arg(0), rows);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), rows);
+    if (a.vmPtr->hasError()) return a.none();
     for (auto& row : rows){
         long long written = 0;
         std::string error;
         if (!writeRow(a, state->dialect, state->target, row, written, error)){
-            a.vm->raiseError("Error", error);
+            a.vmPtr->raiseError("Error", error);
             return a.none();
         }
     }
@@ -712,17 +712,17 @@ value fnWriterRows(cffi& a){
 // Dialect ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 value fnDialectCtor(cffi& a){
     if (a.argc() == 0 && !a.has_kwarg("delimiter")){
-        a.vm->raiseError("Error", "\"delimiter\" must be a unicode character, not NoneType");
+        a.vmPtr->raiseError("Error", "\"delimiter\" must be a unicode character, not NoneType");
         return a.none();
     }
     Dialect d = excelDialect();
     std::string error;
     if (a.argc() >= 1 && !resolveDialect(a, 0, d, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     if (!applyFmtparams(a, d)){
-        a.vm->raiseError("Error", "\"delimiter\" must be a 1-character string");
+        a.vmPtr->raiseError("Error", "\"delimiter\" must be a 1-character string");
         return a.none();
     }
     if (!validateDialect(a, d)) return a.none();
@@ -734,26 +734,26 @@ value fnDialectCtor(cffi& a){
 // DictReader ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 value fnDictReaderCtor(cffi& a){
     if (a.argc() < 1){
-        a.vm->raiseError("TypeError", "DictReader() missing required argument: 'f'");
+        a.vmPtr->raiseError("TypeError", "DictReader() missing required argument: 'f'");
         return a.none();
     }
     std::vector<std::string> lines;
     std::string error;
     if (!collectLines(a, a.arg(0), lines, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     Dialect d = excelDialect();
     std::size_t dialectIndex = 4;
     if (!resolveDialect(a, dialectIndex, d, error) || !applyFmtparams(a, d)){
-        a.vm->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
+        a.vmPtr->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
         return a.none();
     }
     if (!validateDialect(a, d)) return a.none();
     auto* state = new DictReaderState();
-    if (!parseCsv(*a.vm, lines, d, state->rows, state->rowLines, error)){
+    if (!parseCsv(*a.vmPtr, lines, d, state->rows, state->rowLines, error)){
         delete state;
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     state->fieldnames = a.argc() > 1 ? a.arg(1) : a.none();
@@ -790,7 +790,7 @@ value fnDictReaderNext(cffi& a){
     if (!state) return a.none();
     if (state->fieldnames.type == "none" || !state->fieldnames.ptr){
         if (state->index >= state->rows.size()){
-            a.vm->raiseError("StopIteration", "");
+            a.vmPtr->raiseError("StopIteration", "");
             return a.none();
         }
         state->fieldnames = a.mklist(state->rows[state->index]);
@@ -798,11 +798,11 @@ value fnDictReaderNext(cffi& a){
         ++state->index;
     }
     if (state->index >= state->rows.size()){
-        a.vm->raiseError("StopIteration", "");
+        a.vmPtr->raiseError("StopIteration", "");
         return a.none();
     }
     std::vector<value> names;
-    a.vm->materializeIterable(state->fieldnames, names);
+    a.vmPtr->materializeIterable(state->fieldnames, names);
     std::vector<std::pair<value, value>> items;
     const std::vector<value>& row = state->rows[state->index];
     for (std::size_t i = 0; i < names.size(); ++i){
@@ -823,21 +823,21 @@ value fnDictReaderNext(cffi& a){
 // DictWriter ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠤᠭᠴᠢ
 value fnDictWriterCtor(cffi& a){
     if (a.argc() < 2){
-        a.vm->raiseError("TypeError", "DictWriter() missing required arguments");
+        a.vmPtr->raiseError("TypeError", "DictWriter() missing required arguments");
         return a.none();
     }
     Dialect d = excelDialect();
     std::string error;
     if (!resolveDialect(a, 4, d, error) || !applyFmtparams(a, d)){
-        a.vm->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
+        a.vmPtr->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
         return a.none();
     }
     if (!validateDialect(a, d)) return a.none();
     auto* state = new DictWriterState();
     state->dialect = d;
     state->target = a.arg(0);
-    a.vm->materializeIterable(a.arg(1), state->fieldnames);
-    if (a.vm->hasError()){
+    a.vmPtr->materializeIterable(a.arg(1), state->fieldnames);
+    if (a.vmPtr->hasError()){
         delete state;
         return a.none();
     }
@@ -846,7 +846,7 @@ value fnDictWriterCtor(cffi& a){
         state->extrasaction = *static_cast<std::string*>(a.arg(3).ptr);
     if (state->extrasaction != "raise" && state->extrasaction != "ignore"){
         delete state;
-        a.vm->raiseError("ValueError", "extrasaction (" + state->extrasaction +
+        a.vmPtr->raiseError("ValueError", "extrasaction (" + state->extrasaction +
                                         ") must be 'ignore' or 'raise'");
         return a.none();
     }
@@ -873,7 +873,7 @@ value fnDictWriterHeader(cffi& a){
     std::string error;
     long long written = 0;
     if (!writeRow(a, state->dialect, state->target, a.mklist(fields), written, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     return a.none();
@@ -888,7 +888,7 @@ value fnDictWriterRow(cffi& a){
     auto* state = static_cast<DictWriterState*>(inst->handle);
     value rowdict = a.arg(0);
     if (rowdict.type != "dict" || rowdict.ptr == nullptr){
-        a.vm->raiseError("AttributeError", "'" + a.vm->pythonTypeName(rowdict) +
+        a.vmPtr->raiseError("AttributeError", "'" + a.vmPtr->pythonTypeName(rowdict) +
                                           "' object has no attribute 'keys'");
         return a.none();
     }
@@ -896,13 +896,13 @@ value fnDictWriterRow(cffi& a){
     std::vector<value> extraKeys;
     auto dictLookup = [&](const value& key) -> const value* {
         for (auto& entry : *dict)
-            if (a.vm->valuesEqual(entry.first, key)) return &entry.second;
+            if (a.vmPtr->valuesEqual(entry.first, key)) return &entry.second;
         return nullptr;
     };
     for (auto& entry : *dict){
         bool known = false;
         for (auto& name : state->fieldnames){
-            if (a.vm->valuesEqual(name, entry.first)){ known = true; break; }
+            if (a.vmPtr->valuesEqual(name, entry.first)){ known = true; break; }
         }
         if (!known) extraKeys.push_back(entry.first);
     }
@@ -910,9 +910,9 @@ value fnDictWriterRow(cffi& a){
         std::string joined;
         for (std::size_t i = 0; i < extraKeys.size(); ++i){
             if (i > 0) joined += ", ";
-            joined += pythonRepr(*a.vm, extraKeys[i]);
+            joined += pythonRepr(*a.vmPtr, extraKeys[i]);
         }
-        a.vm->raiseError("ValueError", "dict contains fields not in fieldnames: " + joined);
+        a.vmPtr->raiseError("ValueError", "dict contains fields not in fieldnames: " + joined);
         return a.none();
     }
     std::vector<value> fields;
@@ -923,7 +923,7 @@ value fnDictWriterRow(cffi& a){
     std::string error;
     long long written = 0;
     if (!writeRow(a, state->dialect, state->target, a.mklist(fields), written, error)){
-        a.vm->raiseError("Error", error);
+        a.vmPtr->raiseError("Error", error);
         return a.none();
     }
     return a.mkint(written);
@@ -934,14 +934,14 @@ value fnDictWriterRow(cffi& a){
 // DictWriter.writerows
 value fnDictWriterRows(cffi& a){
     std::vector<value> rows;
-    a.vm->materializeIterable(a.arg(0), rows);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), rows);
+    if (a.vmPtr->hasError()) return a.none();
     for (auto& row : rows){
         value self = a.self();
         auto* inst = static_cast<ffi_instance*>(self.ptr);
         auto* state = static_cast<DictWriterState*>(inst->handle);
         if (row.type != "dict" || !row.ptr){
-            a.vm->raiseError("AttributeError", "'" + a.vm->pythonTypeName(row) +
+            a.vmPtr->raiseError("AttributeError", "'" + a.vmPtr->pythonTypeName(row) +
                                               "' object has no attribute 'keys'");
             return a.none();
         }
@@ -950,14 +950,14 @@ value fnDictWriterRows(cffi& a){
         for (auto& name : state->fieldnames){
             const value* found = nullptr;
             for (auto& entry : *dict){
-                if (a.vm->valuesEqual(entry.first, name)){ found = &entry.second; break; }
+                if (a.vmPtr->valuesEqual(entry.first, name)){ found = &entry.second; break; }
             }
             fields.push_back(found ? *found : state->restval);
         }
         std::string error;
         long long written = 0;
         if (!writeRow(a, state->dialect, state->target, a.mklist(fields), written, error)){
-            a.vm->raiseError("Error", error);
+            a.vmPtr->raiseError("Error", error);
             return a.none();
         }
     }
@@ -1138,7 +1138,7 @@ value fnSnifferSniff(cffi& a){
     Dialect d = excelDialect();
     bool hasHeader = false;
     std::string sample = a.arg_str(0);
-    analyzeSample(*a.vm, sample, preferred, d, hasHeader);
+    analyzeSample(*a.vmPtr, sample, preferred, d, hasHeader);
     return makeDialectObject(a, d);
 }
 
@@ -1149,7 +1149,7 @@ value fnSnifferHasHeader(cffi& a){
     std::vector<char> preferred = {',', '\t', ';', ' ', ':', '|'};
     Dialect d = excelDialect();
     bool hasHeader = false;
-    analyzeSample(*a.vm, a.arg_str(0), preferred, d, hasHeader);
+    analyzeSample(*a.vmPtr, a.arg_str(0), preferred, d, hasHeader);
     return a.mkbool(hasHeader);
 }
 
@@ -1167,7 +1167,7 @@ value fnSnifferSniffSample(cffi& a){
     }
     Dialect d = excelDialect();
     bool hasHeader = false;
-    analyzeSample(*a.vm, a.arg_str(0), preferred, d, hasHeader);
+    analyzeSample(*a.vmPtr, a.arg_str(0), preferred, d, hasHeader);
     if (state) state->preferred = d;
     a.setattr(self, "delimiter", a.mkstr(d.delimiter));
     a.setattr(self, "quotechar", d.hasQuotechar ? a.mkstr(std::string(1, d.quotechar)) : a.none());
@@ -1184,14 +1184,14 @@ value fnSnifferSniffSample(cffi& a){
 // ᠠᠶᠠᠯᠭᠤ ᠪᠦᠷᠢᠳᠡᠭᠦᠯᠬᠦ
 value fnRegisterDialect(cffi& a){
     if (a.argc() < 1 || a.arg(0).type != "str"){
-        a.vm->raiseError("TypeError", "register_dialect() argument 1 must be a string");
+        a.vmPtr->raiseError("TypeError", "register_dialect() argument 1 must be a string");
         return a.none();
     }
     std::string name = a.arg_str(0);
     Dialect d = excelDialect();
     std::string error;
     if (!resolveDialect(a, 1, d, error) || !applyFmtparams(a, d)){
-        a.vm->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
+        a.vmPtr->raiseError("Error", error.empty() ? "bad dialect parameter" : error);
         return a.none();
     }
     if (!validateDialect(a, d)) return a.none();
@@ -1206,7 +1206,7 @@ value fnUnregisterDialect(cffi& a){
     std::string name = a.arg_str(0);
     auto it = dialectRegistry().find(name);
     if (it == dialectRegistry().end()){
-        a.vm->raiseError("Error", "unknown dialect");
+        a.vmPtr->raiseError("Error", "unknown dialect");
         return a.none();
     }
     dialectRegistry().erase(it);
@@ -1220,7 +1220,7 @@ value fnGetDialect(cffi& a){
     std::string name = a.arg_str(0);
     auto it = dialectRegistry().find(name);
     if (it == dialectRegistry().end()){
-        a.vm->raiseError("Error", "unknown dialect");
+        a.vmPtr->raiseError("Error", "unknown dialect");
         return a.none();
     }
     return makeDialectObject(a, it->second);

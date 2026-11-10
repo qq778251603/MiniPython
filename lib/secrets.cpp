@@ -84,7 +84,7 @@ bool readByteCount(cffi& a, size_t& count){
     if (a.argc() >= 1 && a.arg(0).type != "none"){
         long long value = a.arg_int(0);
         if (value < 0){
-            a.vm->raiseError("ValueError", "number of bytes must be non-negative");
+            a.vmPtr->raiseError("ValueError", "number of bytes must be non-negative");
             return false;
         }
         count = static_cast<size_t>(value);
@@ -98,10 +98,10 @@ bool readByteCount(cffi& a, size_t& count){
 // fn Choice
 static value fnChoice(cffi& a){
     std::vector<value> items;
-    a.vm->materializeIterable(a.arg(0), items);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), items);
+    if (a.vmPtr->hasError()) return a.none();
     if (items.empty()){
-        a.vm->raiseError("IndexError", "Cannot choose from an empty sequence");
+        a.vmPtr->raiseError("IndexError", "Cannot choose from an empty sequence");
         return a.none();
     }
     size_t index = static_cast<size_t>(randomEngine()() % items.size());
@@ -114,7 +114,7 @@ static value fnChoice(cffi& a){
 static value fnRandbelow(cffi& a){
     long long bound = a.arg_int(0);
     if (bound <= 0){
-        a.vm->raiseError("ValueError", "Upper bound must be positive");
+        a.vmPtr->raiseError("ValueError", "Upper bound must be positive");
         return a.none();
     }
     uint64_t value = randomEngine()() % static_cast<uint64_t>(bound);
@@ -127,11 +127,11 @@ static value fnRandbelow(cffi& a){
 static value fnRandbits(cffi& a){
     long long count = a.arg_int(0);
     if (count < 0){
-        a.vm->raiseError("ValueError", "number of bits must be non-negative");
+        a.vmPtr->raiseError("ValueError", "number of bits must be non-negative");
         return a.none();
     }
     if (count > 63){
-        a.vm->raiseError("ValueError", "number of bits must be at most 63");
+        a.vmPtr->raiseError("ValueError", "number of bits must be at most 63");
         return a.none();
     }
     if (count == 0) return a.mkint(0);
@@ -180,15 +180,15 @@ static value fnTokenUrlsafe(cffi& a){
 static value fnCompareDigest(cffi& a){
     value left = a.arg(0), right = a.arg(1);
     if (left.type != "str" && left.type != "bytes"){
-        a.vm->raiseError("TypeError", "unsupported operand types");
+        a.vmPtr->raiseError("TypeError", "unsupported operand types");
         return a.none();
     }
     if (right.type != "str" && right.type != "bytes"){
-        a.vm->raiseError("TypeError", "unsupported operand types");
+        a.vmPtr->raiseError("TypeError", "unsupported operand types");
         return a.none();
     }
-    std::string leftText = a.vm->toString(left);
-    std::string rightText = a.vm->toString(right);
+    std::string leftText = a.vmPtr->toString(left);
+    std::string rightText = a.vmPtr->toString(right);
     size_t length = leftText.size() > rightText.size() ? leftText.size() : rightText.size();
     unsigned int diff = leftText.size() ^ rightText.size();
     for (size_t i = 0; i < length; ++i){

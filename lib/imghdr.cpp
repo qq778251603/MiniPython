@@ -48,12 +48,12 @@ std::string resolveHeader(cffi& a){
     if (fileArg.type == "bytes" && fileArg.ptr)
         return *static_cast<std::string*>(fileArg.ptr);
     // 文件对象: 调用 read(32)
-    value readMethod = a.vm->getAttribute(fileArg, "read");
-    if (!a.vm->hasError()){
-        value chunk = a.vm->callValue(readMethod, {a.mkint(8192)});
-        if (!a.vm->hasError()) return rawOf(chunk);
+    value readMethod = a.vmPtr->getAttribute(fileArg, "read");
+    if (!a.vmPtr->hasError()){
+        value chunk = a.vmPtr->callValue(readMethod, {a.mkint(8192)});
+        if (!a.vmPtr->hasError()) return rawOf(chunk);
     }
-    a.vm->clearErr();
+    a.vmPtr->clearErr();
     if (fileArg.type == "str" && fileArg.ptr)
         return readHeader(*static_cast<std::string*>(fileArg.ptr));
     return "";

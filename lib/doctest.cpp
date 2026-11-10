@@ -178,7 +178,7 @@ bool doctestIsStatement(const std::string& src){
 // TestResults ᠪᠠᠶᠢᠨᠳᠠᠭᠤᠯᠬᠤ
 value makeTestResults(cffi& a, long long failed, long long attempted){
     auto classIt = a.library->classes.find("TestResults");
-    value obj = a.vm->makeNativeObject(a.library, &classIt->second, nullptr);
+    value obj = a.vmPtr->makeNativeObject(a.library, &classIt->second, nullptr);
     auto* inst = static_cast<ffi_instance*>(obj.ptr);
     inst->attributes["failed"] = a.mkint(failed);
     inst->attributes["attempted"] = a.mkint(attempted);
@@ -189,8 +189,8 @@ value makeTestResults(cffi& a, long long failed, long long attempted){
 // TestResults __repr__
 // TestResults __repr__
 value testResultsRepr(cffi& a){
-    return a.mkstr("TestResults(failed=" + a.vm->toString(a.attr("failed")) +
-                   ", attempted=" + a.vm->toString(a.attr("attempted")) + ")");
+    return a.mkstr("TestResults(failed=" + a.vmPtr->toString(a.attr("failed")) +
+                   ", attempted=" + a.vmPtr->toString(a.attr("attempted")) + ")");
 }
 
 // fn testmod: 无 docstring 体系, 恒为空测试
@@ -211,7 +211,7 @@ value fnTestfile(cffi& a){
 
     std::ifstream in(filename, std::ios::binary);
     if (!in){
-        a.vm->raiseError("FileNotFoundError",
+        a.vmPtr->raiseError("FileNotFoundError",
                          "[Errno 2] No such file or directory: '" + filename + "'");
         return a.none();
     }
@@ -235,22 +235,22 @@ value fnTestfile(cffi& a){
             // ᠡᠮᠬᠢᠳᠬᠡᠯ: repr ᠢ ᠬᠡᠪᠯᠡᠨ᠎ᠡ; ᠠᠮᠵᠢᠯᠲᠠ ᠦᠭᠡᠢ ᠪᠣᠯ ᠮᠥᠷ ᠪᠡᠷ
             std::string wrapped = "_docres = (" + ex.source +
                                   ")\nif _docres is not None:\n    print(repr(_docres))";
-            a.vm->execSource(wrapped);
-            if (a.vm->hasError()){
-                a.vm->clearErr();
+            a.vmPtr->execSource(wrapped);
+            if (a.vmPtr->hasError()){
+                a.vmPtr->clearErr();
                 capture.str("");
                 capture.clear();
-                a.vm->execSource(ex.source);
+                a.vmPtr->execSource(ex.source);
             }
         } else {
-            a.vm->execSource(ex.source);
+            a.vmPtr->execSource(ex.source);
         }
         std::cout.rdbuf(oldBuf);
         std::string got = capture.str();
         std::string excLine;
-        if (a.vm->hasError()){
-            excLine = a.vm->exceptionType() + ": " + a.vm->getLastErr();
-            a.vm->clearErr();
+        if (a.vmPtr->hasError()){
+            excLine = a.vmPtr->exceptionType() + ": " + a.vmPtr->getLastErr();
+            a.vmPtr->clearErr();
         }
         bool ok = excLine.empty() &&
                   outputMatches(ex.want, got, excLine, flags);

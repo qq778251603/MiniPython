@@ -36,9 +36,9 @@ struct ParseResult{
 // ᠦᠰᠦᠭ ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠢ ᠦᠨᠰᠢᠬᠦ
 bool readStrings(cffi& a, const value& source, std::vector<std::string>& out){
     std::vector<value> items;
-    a.vm->materializeIterable(source, items);
-    if (a.vm->hasError()) return false;
-    for (auto& item : items) out.push_back(a.vm->toString(item));
+    a.vmPtr->materializeIterable(source, items);
+    if (a.vmPtr->hasError()) return false;
+    for (auto& item : items) out.push_back(a.vmPtr->toString(item));
     return true;
 }
 
@@ -114,7 +114,7 @@ int findLong(const std::vector<LongOpt>& options, const std::string& name, bool&
 // Raise an unrecognized-option error
 // ᠲᠠᠨᠢᠭᠳᠠᠭ᠎ᠠ ᠦᠭᠡᠢ ᠰᠣᠨᠭᠣᠯᠲᠠ ᠶᠢᠨ ᠠᠯᠳᠠᠭ᠎ᠠ
 value raiseUnknown(cffi& a, const std::string& opt){
-    a.vm->raiseError("GetoptError", "option " + opt + " not recognized");
+    a.vmPtr->raiseError("GetoptError", "option " + opt + " not recognized");
     return a.none();
 }
 
@@ -125,12 +125,12 @@ value buildResult(cffi& a, const ParseResult& parsed){
     std::vector<value> optionValues;
     for (const auto& opt : parsed.options){
         std::vector<value> pair = {a.mkstr(opt.first), a.mkstr(opt.second)};
-        optionValues.push_back(a.vm->makeTuple(pair));
+        optionValues.push_back(a.vmPtr->makeTuple(pair));
     }
     std::vector<value> rest;
     for (const auto& item : parsed.rest) rest.push_back(a.mkstr(item));
     std::vector<value> result = {a.mklist(optionValues), a.mklist(rest)};
-    return a.vm->makeTuple(result);
+    return a.vmPtr->makeTuple(result);
 }
 
 // 通用解析入口
@@ -170,7 +170,7 @@ value parseOptions(cffi& a, bool gnuMode){
             int index = findLong(longOptions, name, ambiguous);
             if (index < 0) return raiseUnknown(a, "--" + name);
             if (ambiguous){
-                a.vm->raiseError("GetoptError", "option --" + name + " not a unique prefix");
+                a.vmPtr->raiseError("GetoptError", "option --" + name + " not a unique prefix");
                 return a.none();
             }
             const LongOpt& opt = longOptions[static_cast<size_t>(index)];
@@ -179,11 +179,11 @@ value parseOptions(cffi& a, bool gnuMode){
                 if (hasAttached) value = attached;
                 else if (i + 1 < args.size()) value = args[++i];
                 else {
-                    a.vm->raiseError("GetoptError", "option --" + opt.name + " requires argument");
+                    a.vmPtr->raiseError("GetoptError", "option --" + opt.name + " requires argument");
                     return a.none();
                 }
             } else if (hasAttached){
-                a.vm->raiseError("GetoptError", "option --" + opt.name + " must not have an argument");
+                a.vmPtr->raiseError("GetoptError", "option --" + opt.name + " must not have an argument");
                 return a.none();
             }
             parsed.options.push_back({"--" + opt.name, value});
@@ -207,7 +207,7 @@ value parseOptions(cffi& a, bool gnuMode){
                         value = args[++i];
                         consumedNext = true;
                     } else {
-                        a.vm->raiseError("GetoptError", std::string("option -") + name +
+                        a.vmPtr->raiseError("GetoptError", std::string("option -") + name +
                                                              " requires argument");
                         return a.none();
                     }

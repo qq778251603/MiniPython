@@ -56,7 +56,7 @@ int monthLength(long long year, int month){
 // ᠰᠠᠷ᠎ᠠ ᠶᠢᠨ ᠬᠦᠷᠢᠶ᠎ᠡ ᠢ ᠰᠢᠯᠭᠠᠬᠤ
 bool checkMonth(cffi& a, long long month){
     if (month < 1 || month > 12){
-        a.vm->raiseError("IllegalMonthError", "month must be in 1..12");
+        a.vmPtr->raiseError("IllegalMonthError", "month must be in 1..12");
         return false;
     }
     return true;
@@ -78,7 +78,7 @@ int instanceFirstWeekday(cffi& a){
         auto* inst = static_cast<ffi_instance*>(self.ptr);
         auto it = inst->attributes.find("firstweekday");
         if (it != inst->attributes.end() && it->second.type == "int"){
-            return static_cast<int>(a.vm->toInt(it->second));
+            return static_cast<int>(a.vmPtr->toInt(it->second));
         }
         if (inst->handle){
             return *static_cast<int*>(inst->handle);
@@ -223,7 +223,7 @@ static value fnMonthrange(cffi& a){
         a.mkint(firstWeekdayOfMonth(year, static_cast<int>(month))),
         a.mkint(monthLength(year, static_cast<int>(month)))
     };
-    return a.vm->makeTuple(items);
+    return a.vmPtr->makeTuple(items);
 }
 
 // fn Monthcalendar
@@ -256,7 +256,7 @@ static value fnFirstweekday(cffi& a){
 static value fnSetfirstweekday(cffi& a){
     long long day = a.arg_int(0);
     if (day < 0 || day > 6){
-        a.vm->raiseError("IllegalWeekdayError", "day must be in 0..6");
+        a.vmPtr->raiseError("IllegalWeekdayError", "day must be in 0..6");
         return a.none();
     }
     gFirstWeekday = static_cast<int>(day);
@@ -268,15 +268,15 @@ static value fnSetfirstweekday(cffi& a){
 // fn Timegm
 static value fnTimegm(cffi& a){
     std::vector<value> fields;
-    a.vm->materializeIterable(a.arg(0), fields);
-    if (a.vm->hasError()) return a.none();
+    a.vmPtr->materializeIterable(a.arg(0), fields);
+    if (a.vmPtr->hasError()) return a.none();
     while (fields.size() < 6) fields.push_back(a.mkint(0));
-    long long year = a.vm->toInt(fields[0]);
-    long long month = a.vm->toInt(fields[1]);
-    long long day = a.vm->toInt(fields[2]);
-    long long hour = a.vm->toInt(fields[3]);
-    long long minute = a.vm->toInt(fields[4]);
-    long long second = a.vm->toInt(fields[5]);
+    long long year = a.vmPtr->toInt(fields[0]);
+    long long month = a.vmPtr->toInt(fields[1]);
+    long long day = a.vmPtr->toInt(fields[2]);
+    long long hour = a.vmPtr->toInt(fields[3]);
+    long long minute = a.vmPtr->toInt(fields[4]);
+    long long second = a.vmPtr->toInt(fields[5]);
     long long days = daysFromCivil(year, static_cast<int>(month), static_cast<int>(day));
     return a.mkint(days * 86400 + hour * 3600 + minute * 60 + second);
 }
@@ -369,7 +369,7 @@ static value fnCalendarSetFirst(cffi& a){
     value self = a.self();
     long long day = a.arg_int(0);
     if (day < 0 || day > 6){
-        a.vm->raiseError("IllegalWeekdayError", "day must be in 0..6");
+        a.vmPtr->raiseError("IllegalWeekdayError", "day must be in 0..6");
         return a.none();
     }
     if (self.type == "native_object" && self.ptr){
@@ -420,7 +420,7 @@ static value fnCalendarMonthDays2(cffi& a){
         std::vector<value> cells;
         for (auto& cell : week){
             std::vector<value> pair = {a.mkint(cell.first), a.mkint(cell.second)};
-            cells.push_back(a.vm->makeTuple(pair));
+            cells.push_back(a.vmPtr->makeTuple(pair));
         }
         rows.push_back(a.mklist(cells));
     }
@@ -454,7 +454,7 @@ static value fnCalendarIterMonthDays2(cffi& a){
     for (auto& week : grid){
         for (auto& cell : week){
             std::vector<value> pair = {a.mkint(cell.first), a.mkint(cell.second)};
-            cells.push_back(a.vm->makeTuple(pair));
+            cells.push_back(a.vmPtr->makeTuple(pair));
         }
     }
     return a.mklist(cells);
@@ -477,7 +477,7 @@ static value fnCalendarYearDays2(cffi& a){
             std::vector<value> cells;
             for (auto& cell : week){
                 std::vector<value> pair = {a.mkint(cell.first), a.mkint(cell.second)};
-                cells.push_back(a.vm->makeTuple(pair));
+                cells.push_back(a.vmPtr->makeTuple(pair));
             }
             rows.push_back(a.mklist(cells));
         }

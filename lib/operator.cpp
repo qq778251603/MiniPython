@@ -15,67 +15,67 @@ using namespace minipy;
 // fn 加
 // fn add
 // fn ᠨᠡᠮᠡᠵᠡ
-static value fnAdd(cffi& a){ return a.vm->applyBinary("+", a.arg(0), a.arg(1)); }
+static value fnAdd(cffi& a){ return a.vmPtr->applyBinary("+", a.arg(0), a.arg(1)); }
 
 // fn 减
 // fn sub
 // fn ᠬᠠᠯᠠᠬᠤ
-static value fnSub(cffi& a){ return a.vm->applyBinary("-", a.arg(0), a.arg(1)); }
+static value fnSub(cffi& a){ return a.vmPtr->applyBinary("-", a.arg(0), a.arg(1)); }
 
 // fn 乘
 // fn mul
 // fn ᠦᠯᠳᠡᠨ᠎ᠠ
-static value fnMul(cffi& a){ return a.vm->applyBinary("*", a.arg(0), a.arg(1)); }
+static value fnMul(cffi& a){ return a.vmPtr->applyBinary("*", a.arg(0), a.arg(1)); }
 
 // fn 真 除
 // fn true div
 // fn ᠨᠲᠠ ᠬᠠᠷᠢᠭᠤᠯᠭᠤ
-static value fnTrueDiv(cffi& a){ return a.vm->applyBinary("/", a.arg(0), a.arg(1)); }
+static value fnTrueDiv(cffi& a){ return a.vmPtr->applyBinary("/", a.arg(0), a.arg(1)); }
 
 // fn Floor 除
 // fn floor div
 // fn Floor ᠬᠠᠷᠢᠭᠤᠯᠭᠤ
-static value fnFloorDiv(cffi& a){ return a.vm->applyBinary("//", a.arg(0), a.arg(1)); }
+static value fnFloorDiv(cffi& a){ return a.vmPtr->applyBinary("//", a.arg(0), a.arg(1)); }
 
 // fn 模
 // fn mod
 // fn ᠣᠷᠣᠭᠤᠯᠭ᠎ᠠ
-static value fnMod(cffi& a){ return a.vm->applyBinary("%", a.arg(0), a.arg(1)); }
+static value fnMod(cffi& a){ return a.vmPtr->applyBinary("%", a.arg(0), a.arg(1)); }
 
 // fn 幂
 // fn pow
 // fn ᠬᠦᠴᠡᠪᠡᠷ
-static value fnPow(cffi& a){ return a.vm->applyBinary("**", a.arg(0), a.arg(1)); }
+static value fnPow(cffi& a){ return a.vmPtr->applyBinary("**", a.arg(0), a.arg(1)); }
 
 // fn 等于
 // fn eq
 // fn ᠲᠣᠬᠢᠷᠠᠭᠤᠯᠳᠠᠭ᠎ᠠ
-static value fnEq(cffi& a){ return a.mkbool(a.vm->valuesEqual(a.arg(0), a.arg(1))); }
+static value fnEq(cffi& a){ return a.mkbool(a.vmPtr->valuesEqual(a.arg(0), a.arg(1))); }
 
 // fn 不等于
 // fn ne
 // fn ᠲᠣᠬᠢᠷᠠᠭᠤᠯᠳᠠᠭᠤᠯ ᠦᠭᠡᠢ
-static value fnNe(cffi& a){ return a.mkbool(!a.vm->valuesEqual(a.arg(0), a.arg(1))); }
+static value fnNe(cffi& a){ return a.mkbool(!a.vmPtr->valuesEqual(a.arg(0), a.arg(1))); }
 
 // fn 小于
 // fn lt
 // fn ᠪᠠᠭ᠎ᠠ
-static value fnLt(cffi& a){ return a.vm->applyBinary("<", a.arg(0), a.arg(1)); }
+static value fnLt(cffi& a){ return a.vmPtr->applyBinary("<", a.arg(0), a.arg(1)); }
 
 // fn 小于等于
 // fn le
 // fn ᠪᠠᠭ᠎ᠠ ᠪᠡᠶᠡᠨ
-static value fnLe(cffi& a){ return a.vm->applyBinary("<=", a.arg(0), a.arg(1)); }
+static value fnLe(cffi& a){ return a.vmPtr->applyBinary("<=", a.arg(0), a.arg(1)); }
 
 // fn 大于
 // fn gt
 // fn ᠶᠡᠬᠡ
-static value fnGt(cffi& a){ return a.vm->applyBinary(">", a.arg(0), a.arg(1)); }
+static value fnGt(cffi& a){ return a.vmPtr->applyBinary(">", a.arg(0), a.arg(1)); }
 
 // fn 大于等于
 // fn ge
 // fn ᠶᠡᠬᠡ ᠪᠡᠶᠡᠨ
-static value fnGe(cffi& a){ return a.vm->applyBinary(">=", a.arg(0), a.arg(1)); }
+static value fnGe(cffi& a){ return a.vmPtr->applyBinary(">=", a.arg(0), a.arg(1)); }
 
 // fn 是
 // fn is
@@ -90,35 +90,35 @@ static value fnIsNot(cffi& a){ return a.mkbool(a.arg(0).ptr != a.arg(1).ptr); }
 // fn 负号
 // fn neg
 // fn ᠰᠣᠩᠭᠣᠨ ᠲᠥᠪ
-static value fnNeg(cffi& a){ return a.vm->applyUnary("-", a.arg(0)); }
+static value fnNeg(cffi& a){ return a.vmPtr->applyUnary("-", a.arg(0)); }
 
 // fn 正号
 // fn pos
 // fn ᠡᠪᠬᠡᠲᠡᠶᠢ ᠲᠥᠪ
-static value fnPos(cffi& a){ return a.vm->applyUnary("+", a.arg(0)); }
+static value fnPos(cffi& a){ return a.vmPtr->applyUnary("+", a.arg(0)); }
 
 // fn 取反
 // fn invert
 // fn ᠦᠬᠡᠬᠡᠵᠡ
-static value fnInvert(cffi& a){ return a.vm->applyUnary("~", a.arg(0)); }
+static value fnInvert(cffi& a){ return a.vmPtr->applyUnary("~", a.arg(0)); }
 
 // fn 非
 // fn not
 // fn ᠦᠭᠡᠢ
-static value fnNot(cffi& a){ return a.mkbool(!a.vm->truthy(a.arg(0))); }
+static value fnNot(cffi& a){ return a.mkbool(!a.vmPtr->truthy(a.arg(0))); }
 
 // fn Truth
 // fn truth
 // fn Truth
-static value fnTruth(cffi& a){ return a.mkbool(a.vm->truthy(a.arg(0))); }
+static value fnTruth(cffi& a){ return a.mkbool(a.vmPtr->truthy(a.arg(0))); }
 
 // fn Abs
 // fn abs
 // fn Abs
 static value fnAbs(cffi& a){
     value value = a.arg(0);
-    if (value.type == "float") return a.mkfloat(std::fabs(a.vm->toFloat(value)));
-    long long number = a.vm->toInt(value);
+    if (value.type == "float") return a.mkfloat(std::fabs(a.vmPtr->toFloat(value)));
+    long long number = a.vmPtr->toInt(value);
     return a.mkint(number < 0 ? -number : number);
 }
 
@@ -126,14 +126,14 @@ static value fnAbs(cffi& a){
 // fn contains
 // fn Contains
 static value fnContains(cffi& a){
-    return a.vm->applyBinary("in", a.arg(1), a.arg(0));
+    return a.vmPtr->applyBinary("in", a.arg(1), a.arg(0));
 }
 
 // fn 拼接
 // fn concat
 // fn ᠨᠢᠯᠡᠨ᠎ᠠ
 static value fnConcat(cffi& a){
-    return a.vm->applyBinary("+", a.arg(0), a.arg(1));
+    return a.vmPtr->applyBinary("+", a.arg(0), a.arg(1));
 }
 
 // fn Getitem
@@ -142,16 +142,16 @@ static value fnConcat(cffi& a){
 static value fnGetitem(cffi& a){
     value container = a.arg(0);
     if (container.type == "dict" && container.ptr != nullptr){
-        if (!a.vm->hashable(a.arg(1))){
+        if (!a.vmPtr->hashable(a.arg(1))){
             std::string keyType = a.arg(1).type == "none" ? "NoneType" : a.arg(1).type;
-            a.vm->raiseError("TypeError", "cannot use '" + keyType +
+            a.vmPtr->raiseError("TypeError", "cannot use '" + keyType +
                                           "' as a dict key (unhashable type: '" +
                                           keyType + "')");
             return a.none();
         }
-        value* found = a.vm->dictFind(container, a.arg(1));
+        value* found = a.vmPtr->dictFind(container, a.arg(1));
         if (found == nullptr){
-            a.vm->raiseError("KeyError", pythonRepr(*a.vm, a.arg(1)));
+            a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, a.arg(1)));
             return a.none();
         }
         return *found;
@@ -160,30 +160,30 @@ static value fnGetitem(cffi& a){
     if ((container.type == "list" || container.type == "tuple") && container.ptr != nullptr){
         if (key.type != "int" && key.type != "bool"){
             std::string keyType = key.type == "none" ? "NoneType" : key.type;
-            a.vm->raiseError("TypeError", container.type + " indices must be integers or slices, not " +
+            a.vmPtr->raiseError("TypeError", container.type + " indices must be integers or slices, not " +
                                           keyType);
             return a.none();
         }
-        long long index = a.vm->toInt(key);
+        long long index = a.vmPtr->toInt(key);
         auto* list = static_cast<std::vector<value>*>(container.ptr);
         if (index < 0) index += static_cast<long long>(list->size());
         if (index < 0 || index >= static_cast<long long>(list->size())){
-            a.vm->raiseError("IndexError", container.type + " index out of range");
+            a.vmPtr->raiseError("IndexError", container.type + " index out of range");
             return a.none();
         }
         return (*list)[static_cast<size_t>(index)];
     }
     long long index = a.arg_int(1);
     if (container.type == "str" && container.ptr != nullptr){
-        std::string text = a.vm->toString(container);
+        std::string text = a.vmPtr->toString(container);
         if (index < 0) index += static_cast<long long>(text.size());
         if (index < 0 || index >= static_cast<long long>(text.size())){
-            a.vm->raiseError("IndexError", "string index out of range");
+            a.vmPtr->raiseError("IndexError", "string index out of range");
             return a.none();
         }
         return a.mkstr(std::string(1, text[static_cast<size_t>(index)]));
     }
-    a.vm->raiseError("TypeError", "'" + a.vm->toString(container) + "' object is not subscriptable");
+    a.vmPtr->raiseError("TypeError", "'" + a.vmPtr->toString(container) + "' object is not subscriptable");
     return a.none();
 }
 
@@ -193,8 +193,8 @@ static value fnGetitem(cffi& a){
 static value fnSetitem(cffi& a){
     value container = a.arg(0);
     if (container.type == "dict" && container.ptr != nullptr){
-        std::string error = a.vm->dictSet(container, a.arg(1), a.arg(2));
-        if (!error.empty()) a.vm->raiseError("TypeError", error);
+        std::string error = a.vmPtr->dictSet(container, a.arg(1), a.arg(2));
+        if (!error.empty()) a.vmPtr->raiseError("TypeError", error);
         return a.none();
     }
     long long index = a.arg_int(1);
@@ -202,17 +202,17 @@ static value fnSetitem(cffi& a){
         auto* list = static_cast<std::vector<value>*>(container.ptr);
         if (index < 0) index += static_cast<long long>(list->size());
         if (index < 0 || index >= static_cast<long long>(list->size())){
-            a.vm->raiseError("IndexError", "list assignment index out of range");
+            a.vmPtr->raiseError("IndexError", "list assignment index out of range");
             return a.none();
         }
         (*list)[static_cast<size_t>(index)] = a.arg(2);
         return a.none();
     }
     if (container.type == "tuple"){
-        a.vm->raiseError("TypeError", "'tuple' object does not support item assignment");
+        a.vmPtr->raiseError("TypeError", "'tuple' object does not support item assignment");
         return a.none();
     }
-    a.vm->raiseError("TypeError", "object does not support item assignment");
+    a.vmPtr->raiseError("TypeError", "object does not support item assignment");
     return a.none();
 }
 
@@ -225,12 +225,12 @@ static value fnCountOf(cffi& a){
     long long count = 0;
     if ((container.type == "list" || container.type == "tuple") && container.ptr != nullptr){
         auto* list = static_cast<std::vector<value>*>(container.ptr);
-        for (auto& item : *list) if (a.vm->valuesEqual(item, target)) count++;
+        for (auto& item : *list) if (a.vmPtr->valuesEqual(item, target)) count++;
         return a.mkint(count);
     }
     if (container.type == "str" && container.ptr != nullptr){
-        std::string text = a.vm->toString(container);
-        std::string needle = a.vm->toString(target);
+        std::string text = a.vmPtr->toString(container);
+        std::string needle = a.vmPtr->toString(target);
         if (!needle.empty()){
             size_t begin = 0;
             while ((begin = text.find(needle, begin)) != std::string::npos){
@@ -240,7 +240,7 @@ static value fnCountOf(cffi& a){
         }
         return a.mkint(count);
     }
-    a.vm->raiseError("TypeError", "object is not iterable");
+    a.vmPtr->raiseError("TypeError", "object is not iterable");
     return a.none();
 }
 
@@ -253,47 +253,47 @@ static value fnIndexOf(cffi& a){
     if ((container.type == "list" || container.type == "tuple") && container.ptr != nullptr){
         auto* list = static_cast<std::vector<value>*>(container.ptr);
         for (size_t i = 0; i < list->size(); ++i){
-            if (a.vm->valuesEqual((*list)[i], target)) return a.mkint(static_cast<long long>(i));
+            if (a.vmPtr->valuesEqual((*list)[i], target)) return a.mkint(static_cast<long long>(i));
         }
-        a.vm->raiseError("ValueError", "x is not in list");
+        a.vmPtr->raiseError("ValueError", "x is not in list");
         return a.none();
     }
     if (container.type == "str" && container.ptr != nullptr){
-        size_t found = a.vm->toString(container).find(a.vm->toString(target));
+        size_t found = a.vmPtr->toString(container).find(a.vmPtr->toString(target));
         if (found == std::string::npos){
-            a.vm->raiseError("ValueError", "substring not found");
+            a.vmPtr->raiseError("ValueError", "substring not found");
             return a.none();
         }
         return a.mkint(static_cast<long long>(found));
     }
-    a.vm->raiseError("TypeError", "object is not iterable");
+    a.vmPtr->raiseError("TypeError", "object is not iterable");
     return a.none();
 }
 
 // fn 与
 // fn and
 // fn ᠪᠠ
-static value fnAnd(cffi& a){ return a.vm->applyBinary("&", a.arg(0), a.arg(1)); }
+static value fnAnd(cffi& a){ return a.vmPtr->applyBinary("&", a.arg(0), a.arg(1)); }
 
 // fn 或
 // fn or
 // fn ᠡᠰᠡᠪᠡᠯ
-static value fnOr(cffi& a){ return a.vm->applyBinary("|", a.arg(0), a.arg(1)); }
+static value fnOr(cffi& a){ return a.vmPtr->applyBinary("|", a.arg(0), a.arg(1)); }
 
 // fn Xor
 // fn xor
 // fn Xor
-static value fnXor(cffi& a){ return a.vm->applyBinary("^", a.arg(0), a.arg(1)); }
+static value fnXor(cffi& a){ return a.vmPtr->applyBinary("^", a.arg(0), a.arg(1)); }
 
 // fn Lshift
 // fn lshift
 // fn Lshift
-static value fnLshift(cffi& a){ return a.vm->applyBinary("<<", a.arg(0), a.arg(1)); }
+static value fnLshift(cffi& a){ return a.vmPtr->applyBinary("<<", a.arg(0), a.arg(1)); }
 
 // fn Rshift
 // fn rshift
 // fn Rshift
-static value fnRshift(cffi& a){ return a.vm->applyBinary(">>", a.arg(0), a.arg(1)); }
+static value fnRshift(cffi& a){ return a.vmPtr->applyBinary(">>", a.arg(0), a.arg(1)); }
 
 // fn Matmul
 // fn matmul
@@ -301,9 +301,9 @@ static value fnRshift(cffi& a){ return a.vm->applyBinary(">>", a.arg(0), a.arg(1
 static value fnMatmul(cffi& a){
     value left = a.arg(0);
     value right = a.arg(1);
-    a.vm->raiseError("TypeError", "unsupported operand type(s) for @: '" +
-                                    a.vm->pythonTypeName(left) + "' and '" +
-                                    a.vm->pythonTypeName(right) + "'");
+    a.vmPtr->raiseError("TypeError", "unsupported operand type(s) for @: '" +
+                                    a.vmPtr->pythonTypeName(left) + "' and '" +
+                                    a.vmPtr->pythonTypeName(right) + "'");
     return a.none();
 }
 
@@ -320,7 +320,7 @@ static value fnIadd(cffi& a){
         list->insert(list->end(), items->begin(), items->end());
         return left;
     }
-    return a.vm->applyBinary("+", left, right);
+    return a.vmPtr->applyBinary("+", left, right);
 }
 
 // fn Imul
@@ -332,7 +332,7 @@ static value fnImul(cffi& a){
     if (left.type == "list" && left.ptr != nullptr &&
         (right.type == "int" || right.type == "bool")){
         auto* list = static_cast<std::vector<value>*>(left.ptr);
-        long long count = a.vm->toInt(right);
+        long long count = a.vmPtr->toInt(right);
         std::vector<value> original = *list;
         list->clear();
         for (long long i = 0; i < count; ++i){
@@ -340,58 +340,58 @@ static value fnImul(cffi& a){
         }
         return left;
     }
-    return a.vm->applyBinary("*", left, right);
+    return a.vmPtr->applyBinary("*", left, right);
 }
 
 // fn Isub
 // fn isub
 // fn Isub
-static value fnIsub(cffi& a){ return a.vm->applyBinary("-", a.arg(0), a.arg(1)); }
+static value fnIsub(cffi& a){ return a.vmPtr->applyBinary("-", a.arg(0), a.arg(1)); }
 
 // fn Itruediv
 // fn itruediv
 // fn Itruediv
-static value fnItruediv(cffi& a){ return a.vm->applyBinary("/", a.arg(0), a.arg(1)); }
+static value fnItruediv(cffi& a){ return a.vmPtr->applyBinary("/", a.arg(0), a.arg(1)); }
 
 // fn Ifloordiv
 // fn ifloordiv
 // fn Ifloordiv
-static value fnIfloordiv(cffi& a){ return a.vm->applyBinary("//", a.arg(0), a.arg(1)); }
+static value fnIfloordiv(cffi& a){ return a.vmPtr->applyBinary("//", a.arg(0), a.arg(1)); }
 
 // fn Imod
 // fn imod
 // fn Imod
-static value fnImod(cffi& a){ return a.vm->applyBinary("%", a.arg(0), a.arg(1)); }
+static value fnImod(cffi& a){ return a.vmPtr->applyBinary("%", a.arg(0), a.arg(1)); }
 
 // fn Ipow
 // fn ipow
 // fn Ipow
-static value fnIpow(cffi& a){ return a.vm->applyBinary("**", a.arg(0), a.arg(1)); }
+static value fnIpow(cffi& a){ return a.vmPtr->applyBinary("**", a.arg(0), a.arg(1)); }
 
 // fn Ilshift
 // fn ilshift
 // fn Ilshift
-static value fnIlshift(cffi& a){ return a.vm->applyBinary("<<", a.arg(0), a.arg(1)); }
+static value fnIlshift(cffi& a){ return a.vmPtr->applyBinary("<<", a.arg(0), a.arg(1)); }
 
 // fn Irshift
 // fn irshift
 // fn Irshift
-static value fnIrshift(cffi& a){ return a.vm->applyBinary(">>", a.arg(0), a.arg(1)); }
+static value fnIrshift(cffi& a){ return a.vmPtr->applyBinary(">>", a.arg(0), a.arg(1)); }
 
 // fn Iand
 // fn iand
 // fn Iand
-static value fnIand(cffi& a){ return a.vm->applyBinary("&", a.arg(0), a.arg(1)); }
+static value fnIand(cffi& a){ return a.vmPtr->applyBinary("&", a.arg(0), a.arg(1)); }
 
 // fn Ior
 // fn ior
 // fn Ior
-static value fnIor(cffi& a){ return a.vm->applyBinary("|", a.arg(0), a.arg(1)); }
+static value fnIor(cffi& a){ return a.vmPtr->applyBinary("|", a.arg(0), a.arg(1)); }
 
 // fn Ixor
 // fn ixor
 // fn Ixor
-static value fnIxor(cffi& a){ return a.vm->applyBinary("^", a.arg(0), a.arg(1)); }
+static value fnIxor(cffi& a){ return a.vmPtr->applyBinary("^", a.arg(0), a.arg(1)); }
 
 // fn Length Hint
 // fn length hint
@@ -404,7 +404,7 @@ static value fnLengthHint(cffi& a){
         return a.mkint(static_cast<long long>(items->size()));
     }
     if (object.type == "str" && object.ptr != nullptr){
-        return a.mkint(static_cast<long long>(a.vm->toString(object).size()));
+        return a.mkint(static_cast<long long>(a.vmPtr->toString(object).size()));
     }
     return a.mkint(fallback);
 }
@@ -415,8 +415,8 @@ static value fnLengthHint(cffi& a){
 static value fnDelitem(cffi& a){
     value container = a.arg(0);
     if (container.type == "dict" && container.ptr != nullptr){
-        if (!a.vm->dictRemove(container, a.arg(1))){
-            a.vm->raiseError("KeyError", pythonRepr(*a.vm, a.arg(1)));
+        if (!a.vmPtr->dictRemove(container, a.arg(1))){
+            a.vmPtr->raiseError("KeyError", pythonRepr(*a.vmPtr, a.arg(1)));
         }
         return a.none();
     }
@@ -425,13 +425,13 @@ static value fnDelitem(cffi& a){
         long long index = a.arg_int(1);
         if (index < 0) index += static_cast<long long>(list->size());
         if (index < 0 || index >= static_cast<long long>(list->size())){
-            a.vm->raiseError("IndexError", "list assignment index out of range");
+            a.vmPtr->raiseError("IndexError", "list assignment index out of range");
             return a.none();
         }
         list->erase(list->begin() + static_cast<size_t>(index));
         return a.none();
     }
-    a.vm->raiseError("TypeError", "'" + a.vm->pythonTypeName(container) +
+    a.vmPtr->raiseError("TypeError", "'" + a.vmPtr->pythonTypeName(container) +
                                     "' object doesn't support item deletion");
     return a.none();
 }

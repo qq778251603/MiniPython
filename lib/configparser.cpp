@@ -305,11 +305,11 @@ value fnAddSection(cffi& a){
     if (!state) return a.none();
     std::string name = a.arg_str(0);
     if (name == "DEFAULT"){
-        a.vm->raiseError("ValueError", "Invalid section name: DEFAULT");
+        a.vmPtr->raiseError("ValueError", "Invalid section name: DEFAULT");
         return a.none();
     }
     if (findSection(state, name)){
-        a.vm->raiseError("DuplicateSectionError", "Section '" + name + "' already exists");
+        a.vmPtr->raiseError("DuplicateSectionError", "Section '" + name + "' already exists");
         return a.none();
     }
     state->sections.push_back({name, {}});
@@ -360,7 +360,7 @@ value fnOptions(cffi& a){
     if (auto* entries = findSection(state, section)){
         for (auto& entry : *entries) addKey(entry.key);
     } else if (section != "DEFAULT"){
-        a.vm->raiseError("NoSectionError", "No section: '" + section + "'");
+        a.vmPtr->raiseError("NoSectionError", "No section: '" + section + "'");
         return a.none();
     }
     return a.mklist(names);
@@ -404,7 +404,7 @@ bool cpGet(cffi& a, CpState* state, const std::string& section, const std::strin
             size_t colon = error.find(':');
             std::string type = colon == std::string::npos ? error : error.substr(0, colon);
             std::string msg = colon == std::string::npos ? "" : trimText(error.substr(colon + 1));
-            a.vm->raiseError(type, msg);
+            a.vmPtr->raiseError(type, msg);
             return false;
         }
         value = out;
@@ -427,13 +427,13 @@ value fnGet(cffi& a){
     bool missingOption = false;
     if (!cpGet(a, state, a.arg_str(0), a.arg_str(1), value, raw,
                missingSection, missingOption)){
-        if (a.vm->hasError()) return a.none();
+        if (a.vmPtr->hasError()) return a.none();
         if (hasFallback) return fallback;
         if (missingSection){
-            a.vm->raiseError("NoSectionError", "No section: '" + a.arg_str(0) + "'");
+            a.vmPtr->raiseError("NoSectionError", "No section: '" + a.arg_str(0) + "'");
             return a.none();
         }
-        a.vm->raiseError("NoOptionError", "No option '" + lowerKey(a.arg_str(1)) +
+        a.vmPtr->raiseError("NoOptionError", "No option '" + lowerKey(a.arg_str(1)) +
                                           "' in section: '" + a.arg_str(0) + "'");
         return a.none();
     }
@@ -448,12 +448,12 @@ value fnSet(cffi& a){
     if (!state) return a.none();
     std::string section = a.arg_str(0);
     std::string key = lowerKey(a.arg_str(1));
-    std::string val = a.argc() > 2 ? a.vm->toString(a.arg(2)) : "";
+    std::string val = a.argc() > 2 ? a.vmPtr->toString(a.arg(2)) : "";
     std::vector<CpEntry>* entries = nullptr;
     if (section == "DEFAULT") entries = &state->defaults;
     else entries = findSection(state, section);
     if (!entries){
-        a.vm->raiseError("NoSectionError", "No section: '" + section + "'");
+        a.vmPtr->raiseError("NoSectionError", "No section: '" + section + "'");
         return a.none();
     }
     if (auto* entry = findEntry(*entries, key)){
@@ -475,7 +475,7 @@ value fnRemoveOption(cffi& a){
     std::string key = lowerKey(a.arg_str(1));
     auto* entries = findSection(state, section);
     if (!entries){
-        a.vm->raiseError("NoSectionError", "No section: '" + section + "'");
+        a.vmPtr->raiseError("NoSectionError", "No section: '" + section + "'");
         return a.mkbool(false);
     }
     for (size_t i = 0; i < entries->size(); ++i){
@@ -502,12 +502,12 @@ value typedGet(cffi& a, int kind){
     bool missingOption = false;
     if (!cpGet(a, state, a.arg_str(0), a.arg_str(1), value, raw,
                missingSection, missingOption)){
-        if (a.vm->hasError()) return a.none();
+        if (a.vmPtr->hasError()) return a.none();
         if (hasFallback) return fallback;
         if (missingSection)
-            a.vm->raiseError("NoSectionError", "No section: '" + a.arg_str(0) + "'");
+            a.vmPtr->raiseError("NoSectionError", "No section: '" + a.arg_str(0) + "'");
         else
-            a.vm->raiseError("NoOptionError", "No option '" + lowerKey(a.arg_str(1)) +
+            a.vmPtr->raiseError("NoOptionError", "No option '" + lowerKey(a.arg_str(1)) +
                                               "' in section: '" + a.arg_str(0) + "'");
         return a.none();
     }
@@ -520,7 +520,7 @@ value typedGet(cffi& a, int kind){
             return a.mkint(number);
         } catch (...){
             if (hasFallback) return fallback;
-            a.vm->raiseError("ValueError", "invalid literal for int() with base 10: '" +
+            a.vmPtr->raiseError("ValueError", "invalid literal for int() with base 10: '" +
                                            value + "'");
             return a.none();
         }
@@ -531,7 +531,7 @@ value typedGet(cffi& a, int kind){
             return a.mkfloat(number);
         } catch (...){
             if (hasFallback) return fallback;
-            a.vm->raiseError("ValueError", "could not convert string to float: '" +
+            a.vmPtr->raiseError("ValueError", "could not convert string to float: '" +
                                            value + "'");
             return a.none();
         }
@@ -541,7 +541,7 @@ value typedGet(cffi& a, int kind){
     if (lowered == "0" || lowered == "no" || lowered == "false" || lowered == "off")
         return a.mkbool(false);
     if (hasFallback) return fallback;
-    a.vm->raiseError("ValueError", "Not a boolean: " + value);
+    a.vmPtr->raiseError("ValueError", "Not a boolean: " + value);
     return a.none();
 }
 
@@ -562,7 +562,7 @@ value fnItems(cffi& a){
         section = a.arg_str(0);
         auto* entries = findSection(state, section);
         if (!entries){
-            a.vm->raiseError("NoSectionError", "No section: '" + section + "'");
+            a.vmPtr->raiseError("NoSectionError", "No section: '" + section + "'");
             return a.none();
         }
         for (auto& entry : *entries){
@@ -580,7 +580,7 @@ value fnItems(cffi& a){
                             entry.value, out, error)) val = out;
         }
         value v = entry.hasValue ? a.mkstr(val) : a.none();
-        pairs.push_back(a.vm->makeTuple({a.mkstr(entry.key), v}));
+        pairs.push_back(a.vmPtr->makeTuple({a.mkstr(entry.key), v}));
     }
     return a.mklist(pairs);
 }
@@ -592,18 +592,18 @@ value fnRead(cffi& a){
     CpState* state = cpStateOf(a);
     if (!state) return a.none();
     std::vector<value> files;
-    a.vm->materializeIterable(a.arg(0), files);
+    a.vmPtr->materializeIterable(a.arg(0), files);
     if (files.empty() && a.arg(0).type == "str") files.push_back(a.arg(0));
     std::vector<value> loaded;
     for (auto& f : files){
-        std::string path = a.vm->toString(f);
+        std::string path = a.vmPtr->toString(f);
         std::ifstream in(path, std::ios::binary);
         if (!in) continue;
         std::ostringstream ss;
         ss << in.rdbuf();
         std::string error;
         if (!parseText(state, ss.str(), "'" + path + "'", error)){
-            a.vm->raiseError(error.substr(0, error.find(':')), error);
+            a.vmPtr->raiseError(error.substr(0, error.find(':')), error);
             return a.none();
         }
         loaded.push_back(a.mkstr(path));
@@ -623,7 +623,7 @@ value fnReadString(cffi& a){
         size_t colon = error.find(':');
         std::string type = error.substr(0, colon);
         std::string msg = colon == std::string::npos ? "" : trimText(error.substr(colon + 1));
-        a.vm->raiseError(type, msg.empty() ? error : msg);
+        a.vmPtr->raiseError(type, msg.empty() ? error : msg);
         return a.none();
     }
     return a.none();
@@ -636,9 +636,9 @@ value fnReadFile(cffi& a){
     CpState* state = cpStateOf(a);
     if (!state) return a.none();
     value result;
-    if (!cffiCallMethod(*a.vm, a.arg(0), "read", {}, result) ||
+    if (!cffiCallMethod(*a.vmPtr, a.arg(0), "read", {}, result) ||
         result.type != "str" || !result.ptr){
-        a.vm->raiseError("TypeError", "file object expected");
+        a.vmPtr->raiseError("TypeError", "file object expected");
         return a.none();
     }
     std::string error;
@@ -646,7 +646,7 @@ value fnReadFile(cffi& a){
         size_t colon = error.find(':');
         std::string type = error.substr(0, colon);
         std::string msg = colon == std::string::npos ? "" : trimText(error.substr(colon + 1));
-        a.vm->raiseError(type, msg.empty() ? error : msg);
+        a.vmPtr->raiseError(type, msg.empty() ? error : msg);
         return a.none();
     }
     return a.none();
@@ -661,7 +661,7 @@ value fnReadDict(cffi& a){
     value input = a.arg(0);
     if (input.type != "dict" || !input.ptr) return a.none();
     for (auto& sectionPair : *static_cast<dict_t*>(input.ptr)){
-        std::string section = a.vm->toString(sectionPair.first);
+        std::string section = a.vmPtr->toString(sectionPair.first);
         std::vector<CpEntry>* entries = findSection(state, section);
         if (!entries){
             state->sections.push_back({section, {}});
@@ -669,8 +669,8 @@ value fnReadDict(cffi& a){
         }
         if (sectionPair.second.type != "dict" || !sectionPair.second.ptr) continue;
         for (auto& optPair : *static_cast<dict_t*>(sectionPair.second.ptr)){
-            std::string key = lowerKey(a.vm->toString(optPair.first));
-            std::string val = a.vm->toString(optPair.second);
+            std::string key = lowerKey(a.vmPtr->toString(optPair.first));
+            std::string val = a.vmPtr->toString(optPair.second);
             if (auto* existing = findEntry(*entries, key)){
                 existing->value = val;
                 existing->hasValue = true;
@@ -704,7 +704,7 @@ value fnWrite(cffi& a){
         out << "\n";
     }
     value result;
-    cffiCallMethod(*a.vm, a.arg(0), "write", {a.mkstr(out.str())}, result);
+    cffiCallMethod(*a.vmPtr, a.arg(0), "write", {a.mkstr(out.str())}, result);
     return a.none();
 }
 

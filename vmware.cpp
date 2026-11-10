@@ -8,6 +8,7 @@
 #include <utility>
 #include <cmath>
 #include <cctype>
+#include <climits>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -19,6 +20,7 @@
 #include <set>
 #include <functional>
 #include <complex>
+#include <memory>
 
 namespace {
     using namespace minipy;
@@ -2080,6 +2082,7 @@ bool vm::truthy(const value& v){
 }
 
 std::string vm::toString(const value& v) {
+    if (v.type == "ellipsis") return "Ellipsis";
     if (v.ptr == nullptr) return "None";
     if (v.type == "bool"){
         return *static_cast<long long*>(v.ptr) != 0 ? "True" : "False";
@@ -2190,8 +2193,8 @@ std::string vm::toString(const value& v) {
         if (instance && instance->typeName == "exception" && instance->handle){
 
             auto* payload = static_cast<ExceptionPayload*>(instance->handle);
-            if (payload->type == "KeyError" && payload->value.type != "none" && payload->value.ptr){
-                return pythonRepr(*this, payload->value);
+            if (payload->type == "KeyError" && payload->excValue.type != "none" && payload->excValue.ptr){
+                return pythonRepr(*this, payload->excValue);
             }
             return payload->msg;
         }
@@ -3263,8 +3266,9 @@ void vm::unpackValues(const value& v, const std::vector<std::string>& targets){
 void vm::unpackTarget(const std::string& target, const value& v){
     std::string t = trimString(target);
     if (t.empty()) return;
-    if (t.size() >= 2 && t.front() == '(' && t.back() == ')'){
-
+    bool isTupleTarget = (t.size() >= 2 && t.front() == '(' && t.back() == ')');
+    bool isListTarget = (t.size() >= 2 && t.front() == '[' && t.back() == ']');
+    if (isTupleTarget || isListTarget){
         std::vector<std::string> parts;
         std::string cur;
         int depth = 0;
@@ -3482,6 +3486,13 @@ value vm::evalOperand(const std::string& item, const span_t& span){
     if (text == "True") return makeBool(true);
     if (text == "False") return makeBool(false);
     if (text == "None") return makeNone();
+    if (text == "..."){
+        value v;
+        v.type = "ellipsis";
+        v.ptr = nullptr;
+        v.owner = this;
+        return v;
+    }
 
     size_t p = 0;
     value v;
@@ -3671,20 +3682,25 @@ value vm::evalOperand(const std::string& item, const span_t& span){
         bool expSign = false;
         bool isHex = (text.size() >= 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X'));
         bool isBin = (text.size() >= 2 && text[0] == '0' && (text[1] == 'b' || text[1] == 'B'));
+        bool isOct = (text.size() >= 2 && text[0] == '0' && (text[1] == 'o' || text[1] == 'O'));
         size_t startScan = 0;
-        if (isHex || isBin){ startScan = 2; digits = true; }
+        if (isHex || isBin || isOct){ startScan = 2; digits = true; }
         while (startScan < text.size()){
             char c = text[startScan];
+            if (c == '_'){ startScan++; continue; }
             if (isHex && std::isxdigit(static_cast<unsigned char>(c))){
                 digits = true;
                 startScan++;
             } else if (isBin && (c == '0' || c == '1')){
                 digits = true;
                 startScan++;
+            } else if (isOct && c >= '0' && c <= '7'){
+                digits = true;
+                startScan++;
             } else break;
         }
         bool complexLiteral = false;
-        if (isHex){
+        if (isHex || isOct){
             r = text.size();
         } else if (isBin){
             if (startScan == text.size() && startScan > 2) r = text.size();
@@ -3694,6 +3710,8 @@ value vm::evalOperand(const std::string& item, const span_t& span){
                 char c = text[r];
                 if (std::isdigit(static_cast<unsigned char>(c))){
                     digits = true;
+                    r++;
+                } else if (c == '_'){
                     r++;
                 } else if (c == '.' && !dot && !hasExp){
                     dot = true;
@@ -3734,14 +3752,25 @@ value vm::evalOperand(const std::string& item, const span_t& span){
                     long long intVal = 0;
                     try {
                         int base = 10;
-                        std::string digitsPart = atom;
-                        if (atom.size() >= 2 && atom[0] == '0' &&
-                            (atom[1] == 'x' || atom[1] == 'X')){
+                        std::string digitsPart;
+                        // Strip underscores and determine base
+                        for (size_t ai = 0; ai < atom.size(); ++ai){
+                            char ac = atom[ai];
+                            if (ac == '_') continue;
+                            digitsPart += ac;
+                        }
+                        if (digitsPart.size() >= 2 && digitsPart[0] == '0' &&
+                            (digitsPart[1] == 'x' || digitsPart[1] == 'X')){
                             base = 16;
-                        } else if (atom.size() >= 2 && atom[0] == '0' &&
-                                   (atom[1] == 'b' || atom[1] == 'B')){
+                            digitsPart = digitsPart.substr(2);
+                        } else if (digitsPart.size() >= 2 && digitsPart[0] == '0' &&
+                                   (digitsPart[1] == 'b' || digitsPart[1] == 'B')){
                             base = 2;
-                            digitsPart = atom.substr(2);
+                            digitsPart = digitsPart.substr(2);
+                        } else if (digitsPart.size() >= 2 && digitsPart[0] == '0' &&
+                                   (digitsPart[1] == 'o' || digitsPart[1] == 'O')){
+                            base = 8;
+                            digitsPart = digitsPart.substr(2);
                         }
                         size_t idx = 0;
                         intVal = std::stoll(digitsPart, &idx, base);
@@ -5808,8 +5837,8 @@ namespace {
 struct match_node{
     char kind = 'W';
     std::string text;
-    std::vector<match_node> children;
-    std::vector<std::pair<std::string, match_node>> attrs;
+    std::vector<std::unique_ptr<match_node>> children;
+    std::vector<std::pair<std::string, std::unique_ptr<match_node>>> attrs;
 };
 
 // match Decode Payload
@@ -5841,32 +5870,32 @@ match_node matchParseNode(const std::string& ir, size_t& p){
             break;
         case 'A':
             node.text = matchDecodePayload(ir, p);
-            node.children.push_back(matchParseNode(ir, p));
+            node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
             break;
         case 'O':
-            node.children.push_back(matchParseNode(ir, p));
-            node.children.push_back(matchParseNode(ir, p));
+            node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
+            node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
             break;
         case 'S': case 'M': {
             std::string countText = matchDecodePayload(ir, p);
             int count = countText.empty() ? 0 : std::stoi(countText);
-            for (int i = 0; i < count; ++i) node.children.push_back(matchParseNode(ir, p));
+            for (int i = 0; i < count; ++i) node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
             break;
         }
         case 'E':
             node.text = matchDecodePayload(ir, p);
-            node.children.push_back(matchParseNode(ir, p));
+            node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
             break;
         case 'K': {
             node.text = matchDecodePayload(ir, p);
             std::string nposText = matchDecodePayload(ir, p);
             int npos = nposText.empty() ? 0 : std::stoi(nposText);
-            for (int i = 0; i < npos; ++i) node.children.push_back(matchParseNode(ir, p));
+            for (int i = 0; i < npos; ++i) node.children.push_back(std::make_unique<match_node>(matchParseNode(ir, p)));
             std::string nkwText = matchDecodePayload(ir, p);
             int nkw = nkwText.empty() ? 0 : std::stoi(nkwText);
             for (int i = 0; i < nkw; ++i){
                 std::string attr = matchDecodePayload(ir, p);
-                node.attrs.push_back({attr, matchParseNode(ir, p)});
+                node.attrs.push_back({attr, std::make_unique<match_node>(matchParseNode(ir, p))});
             }
             break;
         }
@@ -5908,22 +5937,22 @@ bool vm::matchPattern(const value& subject, const std::string& ir,
             }
             case 'A': {
                 if (node.children.empty()) return false;
-                if (!matchNode(v, node.children[0], caps)) return false;
+                if (!matchNode(v, *node.children[0], caps)) return false;
                 return bindName(node.text, v);
             }
             case 'O': {
                 if (node.children.size() < 2) return false;
                 auto saved = caps;
-                if (matchNode(v, node.children[0], caps)) return true;
+                if (matchNode(v, *node.children[0], caps)) return true;
                 caps = saved;
-                return matchNode(v, node.children[1], caps);
+                return matchNode(v, *node.children[1], caps);
             }
             case 'S': {
                 auto* seq = sequenceBacking(v);
                 if (!seq) return false;
                 int starPos = -1;
                 for (size_t idx = 0; idx < node.children.size(); ++idx){
-                    if (node.children[idx].kind == 'T'){
+                    if (node.children[idx]->kind == 'T'){
                         starPos = static_cast<int>(idx);
                         break;
                     }
@@ -5931,7 +5960,7 @@ bool vm::matchPattern(const value& subject, const std::string& ir,
                 if (starPos < 0){
                     if (seq->size() != node.children.size()) return false;
                     for (size_t idx = 0; idx < node.children.size(); ++idx){
-                        if (!matchNode((*seq)[idx], node.children[idx], caps)) return false;
+                        if (!matchNode((*seq)[idx], *node.children[idx], caps)) return false;
                     }
                     return true;
                 }
@@ -5940,16 +5969,16 @@ bool vm::matchPattern(const value& subject, const std::string& ir,
                 size_t prefixCount = static_cast<size_t>(starPos);
                 size_t suffixCount = node.children.size() - static_cast<size_t>(starPos) - 1;
                 for (size_t idx = 0; idx < prefixCount; ++idx){
-                    if (!matchNode((*seq)[idx], node.children[idx], caps)) return false;
+                    if (!matchNode((*seq)[idx], *node.children[idx], caps)) return false;
                 }
                 for (size_t idx = 0; idx < suffixCount; ++idx){
                     size_t subjectIdx = seq->size() - suffixCount + idx;
-                    if (!matchNode((*seq)[subjectIdx], node.children[static_cast<size_t>(starPos) + 1 + idx], caps))
+                    if (!matchNode((*seq)[subjectIdx], *node.children[static_cast<size_t>(starPos) + 1 + idx], caps))
                         return false;
                 }
                 std::vector<value> middle(seq->begin() + starPos,
                                             seq->begin() + static_cast<long long>(seq->size() - suffixCount));
-                return bindName(node.children[static_cast<size_t>(starPos)].text, makeList(middle));
+                return bindName(node.children[static_cast<size_t>(starPos)]->text, makeList(middle));
             }
             case 'M': {
                 dict_t* backing = dictBacking(v);
@@ -5957,17 +5986,17 @@ bool vm::matchPattern(const value& subject, const std::string& ir,
                 std::vector<value> consumedKeys;
                 std::vector<const match_node*> restNodes;
                 for (auto& entry : node.children){
-                    if (entry.kind == 'R'){
-                        restNodes.push_back(&entry);
+                    if (entry->kind == 'R'){
+                        restNodes.push_back(entry.get());
                         continue;
                     }
-                    if (entry.kind != 'E' || entry.children.empty()) return false;
-                    value key = evalExpr(entry.text);
+                    if (entry->kind != 'E' || entry->children.empty()) return false;
+                    value key = evalExpr(entry->text);
                     if (failed) return false;
                     value* found = dictFind(v, key);
                     if (!found) return false;
                     consumedKeys.push_back(key);
-                    if (!matchNode(*found, entry.children[0], caps)) return false;
+                    if (!matchNode(*found, *entry->children[0], caps)) return false;
                 }
                 for (auto* restNode : restNodes){
                     std::vector<std::pair<value, value>> restItems;
@@ -6044,14 +6073,14 @@ bool vm::matchPattern(const value& subject, const std::string& ir,
                         if (!hasAttribute(v, attr)) return false;
                         value attrValue = getAttribute(v, attr);
                         if (failed) return false;
-                        if (!matchNode(attrValue, node.children[i], caps)) return false;
+                        if (!matchNode(attrValue, *node.children[i], caps)) return false;
                     }
                 }
                 for (auto& attrEntry : node.attrs){
                     if (!hasAttribute(v, attrEntry.first)) return false;
                     value attrValue = getAttribute(v, attrEntry.first);
                     if (failed) return false;
-                    if (!matchNode(attrValue, attrEntry.second, caps)) return false;
+                    if (!matchNode(attrValue, *attrEntry.second, caps)) return false;
                 }
                 return true;
             }
@@ -7080,7 +7109,7 @@ bool minipy::generatorStateCall(vm& vm, ffi_instance& self,
                 auto* payload = static_cast<ExceptionPayload*>(instance->handle);
                 excType = payload->type;
                 excMsg = payload->msg;
-                excValue = payload->value;
+                excValue = payload->excValue;
             }
         } else if (!args.empty() && args[0].type == "str"){
             std::string text = *static_cast<std::string*>(args[0].ptr);
@@ -7177,12 +7206,12 @@ static bool exceptionPayloadGet(vm& vm, void* handle, const std::string& name,
     auto* payload = static_cast<ExceptionPayload*>(handle);
     if (!payload) return false;
     if (name == "v"){
-        result = payload->value;
+        result = payload->excValue;
         return true;
     }
     if (name == "args"){
-        if (payload->value.type != "none"){
-            result = vm.makeTuple({payload->value});
+        if (payload->excValue.type != "none"){
+            result = vm.makeTuple({payload->excValue});
         } else if (!payload->msg.empty()){
             result = vm.makeTuple({vm.makeString(payload->msg)});
         } else {
@@ -7222,7 +7251,7 @@ value vm::makeExceptionObject(const std::string& type, const std::string& msg,
     auto* payload = new ExceptionPayload();
     payload->type = type;
     payload->msg = msg;
-    payload->value = v;
+    payload->excValue = v;
 
     value result = makeDynamicObject("exception", payload,
                                        exceptionPayloadGet, exceptionPayloadCall);
@@ -8875,7 +8904,7 @@ value vm::invokeAny(value callee, std::vector<value> args){
         if (!inst->klass && inst->handle && inst->library){
             auto fn = reinterpret_cast<cffi_native_function>(inst->handle);
             cffi callCtx;
-            callCtx.vm = this;
+            callCtx.vmPtr = this;
             callCtx.library = inst->library;
             callCtx.argv = args;
             // 记录被调用的槽位原值, 供 C-API 的共用入口精确反查回调
@@ -9502,7 +9531,7 @@ value vm::callFunc(std::string funcName, std::vector<value> args,
             if (!instance->klass && instance->handle && instance->library){
                 auto fn = reinterpret_cast<cffi_native_function>(instance->handle);
                 cffi callCtx;
-                callCtx.vm = this;
+                callCtx.vmPtr = this;
                 callCtx.library = instance->library;
                 callCtx.argv = args;
                 callCtx.kwargv = kwargs;
@@ -9803,7 +9832,7 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                             ExceptionPayload ep;
                             ep.type = pendingExceptionType;
                             ep.msg = pendingExceptionMsg;
-                            ep.value = pendingExceptionValue;
+                            ep.excValue = pendingExceptionValue;
                             handledExcStack.push_back(ep);
                             top.handledExc = true;
                             pendingExceptionType.clear();
@@ -10108,7 +10137,7 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                 if (!handledExcStack.empty()){
                     ExceptionPayload& ep = handledExcStack.back();
                     pendingCaret = span_t();
-                    raiseError(ep.type, ep.msg, ep.value);
+                    raiseError(ep.type, ep.msg, ep.excValue);
                 } else {
                     raiseError("RuntimeError", "No active exception to reraise");
                 }
@@ -10142,7 +10171,7 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                     if (inst && inst->typeName == "exception" && inst->handle){
                         auto* payload = static_cast<ExceptionPayload*>(inst->handle);
                         pendingCaret = span_t();
-                        raiseError(payload->type, payload->msg, payload->value);
+                        raiseError(payload->type, payload->msg, payload->excValue);
                     } else {
                         if (ins.operands.size() >= 2){
                             evalExpr(ins.operands[1]);
@@ -10667,44 +10696,105 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                     if (pydLocateFile(moduleName, pydPath) && pydReadFileBytes(pydPath, pydBytes)){
                         loadpyd(moduleName, pydBytes);
                     }
+                    // Re-check after potential load
+                    foundModule = false;
+                    for (auto* lib : cffiLibraries){
+                        if (lib && lib->name == moduleName){ foundModule = true; break; }
+                    }
                 }
 
                 if (isScriptLib && !failed){
                     executeScriptModule(moduleName);
                 }
 
-                foundModule = false;
-                for (auto* lib : cffiLibraries){
-                    if (lib && lib->name == moduleName){
-                        foundModule = true;
-
-                        if (cffiCallData(*lib, memberName, *this, memberVal)){
-                            if (!failed) setVariable(alias, memberVal);
+                // Star import: import all public names from the module
+                if (memberName == "*" && !failed){
+                    // CFFI library star import
+                    for (auto* lib : cffiLibraries){
+                        if (lib && lib->name == moduleName){
+                            for (auto& kv : lib->functions){
+                                if (!kv.first.empty() && kv.first[0] != '_'){
+                                    ffi_instance* fnObj = new ffi_instance();
+                                    fnObj->library = lib;
+                                    fnObj->klass = nullptr;
+                                    fnObj->typeName = kv.first;
+                                    fnObj->handle = kv.second;
+                                    setVariable(kv.first, value("native_object",
+                                                                keep(vk_native_object, fnObj), this));
+                                }
+                            }
+                            for (auto& kv : lib->classes){
+                                if (!kv.first.empty() && kv.first[0] != '_'){
+                                    ffi_instance* classObj = new ffi_instance();
+                                    classObj->library = lib;
+                                    classObj->klass = &kv.second;
+                                    setVariable(kv.first, value("native_object",
+                                                               keep(vk_native_object, classObj), this));
+                                }
+                            }
                             break;
                         }
-
-                        auto funcIt = lib->functions.find(memberName);
-                        if (funcIt != lib->functions.end()){
-                            ffi_instance* fnObj = new ffi_instance();
-                            fnObj->library = lib;
-                            fnObj->klass = nullptr;
-                            fnObj->typeName = memberName;
-                            fnObj->handle = funcIt->second;
-                            setVariable(alias, value("native_object",
-                                                        keep(vk_native_object, fnObj), this));
+                    }
+                    // Script library star import
+                    for (auto& lib : scriptLibraries){
+                        if (lib.first == moduleName){
+                            for (auto& f : lib.second.functions){
+                                if (!f.name.empty() && f.name[0] != '_'){
+                                    value fnVal;
+                                    fnVal.type = "function";
+                                    fnVal.ptr = const_cast<function_t*>(&f);
+                                    setVariable(f.name, fnVal);
+                                }
+                            }
+                            for (auto& c : lib.second.classes){
+                                if (!c.name.empty() && c.name[0] != '_'){
+                                    initializeClass(const_cast<class_t&>(c));
+                                    value clsVal;
+                                    clsVal.type = "class";
+                                    clsVal.ptr = const_cast<class_t*>(&c);
+                                    setVariable(c.name, clsVal);
+                                }
+                            }
                             break;
                         }
+                    }
+                    i++;
+                    continue;
+                }
 
-                        auto classIt = lib->classes.find(memberName);
-                        if (classIt != lib->classes.end()){
-                            ffi_instance* classObj = new ffi_instance();
-                            classObj->library = lib;
-                            classObj->klass = &classIt->second;
-                            setVariable(alias, value("native_object",
-                                                     keep(vk_native_object, classObj), this));
+                if (!foundModule){
+                    for (auto* lib : cffiLibraries){
+                        if (lib && lib->name == moduleName){
+                            foundModule = true;
+
+                            if (cffiCallData(*lib, memberName, *this, memberVal)){
+                                if (!failed) setVariable(alias, memberVal);
+                                break;
+                            }
+
+                            auto funcIt = lib->functions.find(memberName);
+                            if (funcIt != lib->functions.end()){
+                                ffi_instance* fnObj = new ffi_instance();
+                                fnObj->library = lib;
+                                fnObj->klass = nullptr;
+                                fnObj->typeName = memberName;
+                                fnObj->handle = funcIt->second;
+                                setVariable(alias, value("native_object",
+                                                            keep(vk_native_object, fnObj), this));
+                                break;
+                            }
+
+                            auto classIt = lib->classes.find(memberName);
+                            if (classIt != lib->classes.end()){
+                                ffi_instance* classObj = new ffi_instance();
+                                classObj->library = lib;
+                                classObj->klass = &classIt->second;
+                                setVariable(alias, value("native_object",
+                                                         keep(vk_native_object, classObj), this));
+                                break;
+                            }
                             break;
                         }
-                        break;
                     }
                 }
                 if (!foundModule){
@@ -13031,7 +13121,7 @@ static value pydThunk(cffi& args);
 // pyd dispatch slot
 // pyd Dispatch Slot
 static value pydDispatchSlot(int index, cffi& args){
-    vm& vm = *args.vm;
+    vm& vm = *args.vmPtr;
     if (index < 0 || static_cast<size_t>(index) >= g_pydSlots.size()){
         vm.raiseError("RuntimeError", "invalid pyd function slot");
         return vm.makeNone();

@@ -22,7 +22,7 @@ bool buildRegex(cffi& a, const std::string& pattern, std::regex& expression){
         expression = std::regex(pattern, std::regex::ECMAScript);
         return true;
     } catch (const std::regex_error& error){
-        a.vm->raiseError("re.error", std::string(error.what()));
+        a.vmPtr->raiseError("re.error", std::string(error.what()));
         return false;
     }
 }
@@ -157,7 +157,7 @@ static value fnSub(cffi& a){
     try {
         return a.mkstr(std::regex_replace(text, expression, replacement));
     } catch (const std::regex_error& error){
-        a.vm->raiseError("re.error", std::string(error.what()));
+        a.vmPtr->raiseError("re.error", std::string(error.what()));
         return a.none();
     }
 }
@@ -178,9 +178,9 @@ static value fnSubn(cffi& a){
         std::vector<value> result;
         result.push_back(a.mkstr(std::regex_replace(text, expression, replacement)));
         result.push_back(a.mkint(count));
-        return a.vm->makeTuple(result);
+        return a.vmPtr->makeTuple(result);
     } catch (const std::regex_error& error){
-        a.vm->raiseError("re.error", std::string(error.what()));
+        a.vmPtr->raiseError("re.error", std::string(error.what()));
         return a.none();
     }
 }

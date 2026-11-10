@@ -33,7 +33,7 @@ bool callerPerfCounter(vm& v, ffi_instance&, const std::vector<value>&,
 // Build default timer object
 // ᠡᠩ ᠦᠨ ᠴᠠᠭ ᠦᠨ ᠬᠡᠷᠡᠭᠰᠡᠯ
 value makeDefaultTimer(cffi& a){
-    return a.vm->makeDynamicObject("builtin_function_or_method", (void*)1,
+    return a.vmPtr->makeDynamicObject("builtin_function_or_method", (void*)1,
                                    nullptr, callerPerfCounter);
 }
 
@@ -41,14 +41,14 @@ value makeDefaultTimer(cffi& a){
 // Run the timing loop
 // ᠴᠠᠭ ᠯᠣᠭᠢᠬᠣ
 double measure(cffi& a, TimerState* s, long long number){
-    if (a.vm->execSource(s->setup) == false) return -1.0;
-    value start = a.vm->callValue(s->timer, {});
-    double t0 = a.vm->toFloat(start);
+    if (a.vmPtr->execSource(s->setup) == false) return -1.0;
+    value start = a.vmPtr->callValue(s->timer, {});
+    double t0 = a.vmPtr->toFloat(start);
     for (long long i = 0; i < number; ++i){
-        if (!a.vm->execSource(s->stmt)) return -1.0;
+        if (!a.vmPtr->execSource(s->stmt)) return -1.0;
     }
-    value stop = a.vm->callValue(s->timer, {});
-    double t1 = a.vm->toFloat(stop);
+    value stop = a.vmPtr->callValue(s->timer, {});
+    double t1 = a.vmPtr->toFloat(stop);
     return t1 - t0;
 }
 
@@ -86,7 +86,7 @@ static value fnTimeit(cffi& a){
     else if (a.argc() > 0 && a.arg(0).type != "none") number = a.arg_int(0);
     if (number < 0) number = 0;
     double elapsed = measure(a, s, number);
-    if (a.vm->hasError()) return a.mkfloat(0.0);
+    if (a.vmPtr->hasError()) return a.mkfloat(0.0);
     return a.mkfloat(elapsed < 0.0 ? 0.0 : elapsed);
 }
 
@@ -107,7 +107,7 @@ static value fnRepeat(cffi& a){
     std::vector<value> results;
     for (long long i = 0; i < repeat; ++i){
         double elapsed = measure(a, s, number < 0 ? 0 : number);
-        if (a.vm->hasError()) break;
+        if (a.vmPtr->hasError()) break;
         results.push_back(a.mkfloat(elapsed < 0.0 ? 0.0 : elapsed));
     }
     return a.mklist(results);
@@ -119,10 +119,10 @@ static value fnRepeat(cffi& a){
 static value fnAutorange(cffi& a){
     value self = a.self();
     if (self.type != "native_object" || !self.ptr)
-        return a.vm->makeTuple({a.mkint(1), a.mkfloat(0.0)});
+        return a.vmPtr->makeTuple({a.mkint(1), a.mkfloat(0.0)});
     auto* s = static_cast<TimerState*>(static_cast<ffi_instance*>(self.ptr)->handle);
     double elapsed = measure(a, s, 10);
-    return a.vm->makeTuple({a.mkint(10), a.mkfloat(elapsed < 0.0 ? 0.0 : elapsed)});
+    return a.vmPtr->makeTuple({a.mkint(10), a.mkfloat(elapsed < 0.0 ? 0.0 : elapsed)});
 }
 
 // 模块级 timeit
@@ -165,7 +165,7 @@ static value fnModuleRepeat(cffi& a){
     std::vector<value> results;
     for (long long i = 0; i < repeat; ++i){
         double elapsed = measure(a, s, number < 0 ? 0 : number);
-        if (a.vm->hasError()) break;
+        if (a.vmPtr->hasError()) break;
         results.push_back(a.mkfloat(elapsed < 0.0 ? 0.0 : elapsed));
     }
     return a.mklist(results);

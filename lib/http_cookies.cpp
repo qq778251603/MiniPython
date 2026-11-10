@@ -140,7 +140,7 @@ value makeMorsel(cffi& a, const std::string& key, const std::string& rawValue,
         auto it = a.library->classes.find("Morsel");
         if (it != a.library->classes.end()) klass = &it->second;
     }
-    value obj = a.vm->makeNativeObject(a.library, klass, nullptr);
+    value obj = a.vmPtr->makeNativeObject(a.library, klass, nullptr);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
         inst->attributes["key"] = a.mkstr(key);
@@ -183,7 +183,7 @@ static value fnMorselGetitem(cffi& a){
     auto* inst = instOf(a.self());
     std::string key = a.arg_str(0);
     if (!reservedNames().count(key)){
-        a.vm->raiseError("CookieError", "Invalid attribute name " + key);
+        a.vmPtr->raiseError("CookieError", "Invalid attribute name " + key);
         return a.none();
     }
     if (!inst) return a.mkstr("");
@@ -199,7 +199,7 @@ static value fnMorselSetitem(cffi& a){
     auto* inst = instOf(a.self());
     std::string key = a.arg_str(0);
     if (!reservedNames().count(key)){
-        a.vm->raiseError("CookieError", "Invalid attribute name " + key);
+        a.vmPtr->raiseError("CookieError", "Invalid attribute name " + key);
         return a.none();
     }
     if (inst) inst->attributes[key] = a.arg(1);
@@ -237,7 +237,7 @@ std::string formatMorsel(cffi& a, ffi_instance* inst){
         else if (it->second.type == "bool")
             text = attrInt(inst, attr) ? "True" : "False";
         else
-            text = a.vm->toString(it->second);
+            text = a.vmPtr->toString(it->second);
         if (attr == "secure" || attr == "httponly"){
             // 标志属性仅输出名称 (CPython: "; Secure")
             // Flag attributes print name only (CPython: "; Secure")
@@ -293,7 +293,7 @@ std::vector<value>* cookieItems(cffi& a, const value& self, bool create){
     auto it = inst->attributes.find("_morsels");
     if (it == inst->attributes.end() || it->second.type != "list" || !it->second.ptr){
         if (!create) return nullptr;
-        inst->attributes["_morsels"] = a.vm->makeList({});
+        inst->attributes["_morsels"] = a.vmPtr->makeList({});
         it = inst->attributes.find("_morsels");
     }
     return static_cast<std::vector<value>*>(it->second.ptr);
@@ -319,7 +319,7 @@ static value fnCookieCtor(cffi& a){
     value obj = a.mkobject(nullptr);
     if (obj.type == "native_object" && obj.ptr){
         auto* inst = static_cast<ffi_instance*>(obj.ptr);
-        inst->attributes["_morsels"] = a.vm->makeList({});
+        inst->attributes["_morsels"] = a.vmPtr->makeList({});
     }
     return obj;
 }
@@ -347,8 +347,8 @@ static value fnCookieSetitem(cffi& a){
         }
         return a.none();
     }
-    std::string text = valueObj.type == "str" ? a.vm->toString(valueObj)
-                                              : a.vm->toString(valueObj);
+    std::string text = valueObj.type == "str" ? a.vmPtr->toString(valueObj)
+                                              : a.vmPtr->toString(valueObj);
     std::vector<value>* items = cookieItems(a, a.self(), true);
     value existing = findMorsel(a, a.self(), key);
     if (existing.type == "native_object" && existing.ptr){
@@ -367,7 +367,7 @@ static value fnCookieSetitem(cffi& a){
 static value fnCookieGetitem(cffi& a){
     value found = findMorsel(a, a.self(), a.arg_str(0));
     if (found.type == "native_object") return found;
-    a.vm->raiseError("KeyError", a.arg_str(0));
+    a.vmPtr->raiseError("KeyError", a.arg_str(0));
     return a.none();
 }
 
@@ -422,7 +422,7 @@ static value fnCookieItems(cffi& a){
         for (auto& item : *items){
             auto* inst = instOf(item);
             if (!inst) continue;
-            out.push_back(a.vm->makeTuple({a.mkstr(attrStr(inst, "key")), item}));
+            out.push_back(a.vmPtr->makeTuple({a.mkstr(attrStr(inst, "key")), item}));
         }
     }
     return a.mklist(out);

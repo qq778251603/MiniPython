@@ -57,7 +57,7 @@ static minipy::value fnCopy(minipy::cffi& a){
 // fn deepcopy
 // fn Deepcopy
 static minipy::value fnDeepcopy(minipy::cffi& a){
-    return deepCopy(*a.vm, a.arg(0));
+    return deepCopy(*a.vmPtr, a.arg(0));
 }
 
 minipy::ffilib minipy::cffi_copy_lib(){

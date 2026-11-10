@@ -33,7 +33,7 @@ GcState& stateOf(vm* v){
 // gc.enable
 // gc.enable
 static value fnEnable(cffi& a){
-    stateOf(a.vm).enabled = true;
+    stateOf(a.vmPtr).enabled = true;
     return a.none();
 }
 
@@ -41,7 +41,7 @@ static value fnEnable(cffi& a){
 // gc.disable
 // gc.disable
 static value fnDisable(cffi& a){
-    stateOf(a.vm).enabled = false;
+    stateOf(a.vmPtr).enabled = false;
     return a.none();
 }
 
@@ -49,7 +49,7 @@ static value fnDisable(cffi& a){
 // gc.isenabled
 // gc.isenabled
 static value fnIsenabled(cffi& a){
-    return a.mkbool(stateOf(a.vm).enabled);
+    return a.mkbool(stateOf(a.vmPtr).enabled);
 }
 
 // gc.collect (引用计数 VM 不做环回收, 返回 0)
@@ -59,7 +59,7 @@ static value fnCollect(cffi& a){
     if (a.argc() > 0 && a.arg(0).type != "none"){
         long long generation = a.arg_int(0);
         if (generation < 0 || generation > 2){
-            a.vm->raiseError("ValueError", "invalid generation " +
+            a.vmPtr->raiseError("ValueError", "invalid generation " +
                             std::to_string(generation));
             return a.none();
         }
@@ -71,7 +71,7 @@ static value fnCollect(cffi& a){
 // gc.get_count
 // gc.get_count
 static value fnGetCount(cffi& a){
-    return a.vm->makeTuple({a.mkint(0), a.mkint(0), a.mkint(0)});
+    return a.vmPtr->makeTuple({a.mkint(0), a.mkint(0), a.mkint(0)});
 }
 
 // gc.get_stats
@@ -93,7 +93,7 @@ static value fnGetStats(cffi& a){
 // gc.get_objects (enumerate the VM heap registry)
 // gc.get_objects
 static value fnGetObjects(cffi& a){
-    std::vector<value> objects = a.vm->heapSnapshot();
+    std::vector<value> objects = a.vmPtr->heapSnapshot();
     return a.mklist(objects);
 }
 
@@ -144,14 +144,14 @@ static value fnUnfreeze(cffi& a){
 // gc.get_debug
 // gc.get_debug
 static value fnGetDebug(cffi& a){
-    return a.mkint(stateOf(a.vm).debug);
+    return a.mkint(stateOf(a.vmPtr).debug);
 }
 
 // gc.set_debug
 // gc.set_debug
 // gc.set_debug
 static value fnSetDebug(cffi& a){
-    stateOf(a.vm).debug = a.arg_int(0);
+    stateOf(a.vmPtr).debug = a.arg_int(0);
     return a.none();
 }
 
@@ -159,8 +159,8 @@ static value fnSetDebug(cffi& a){
 // gc.get_threshold
 // gc.get_threshold
 static value fnGetThreshold(cffi& a){
-    GcState& s = stateOf(a.vm);
-    return a.vm->makeTuple({a.mkint(s.threshold0), a.mkint(s.threshold1),
+    GcState& s = stateOf(a.vmPtr);
+    return a.vmPtr->makeTuple({a.mkint(s.threshold0), a.mkint(s.threshold1),
                             a.mkint(s.threshold2)});
 }
 
@@ -168,7 +168,7 @@ static value fnGetThreshold(cffi& a){
 // gc.set_threshold
 // gc.set_threshold
 static value fnSetThreshold(cffi& a){
-    GcState& s = stateOf(a.vm);
+    GcState& s = stateOf(a.vmPtr);
     if (a.argc() > 0) s.threshold0 = a.arg_int(0);
     if (a.argc() > 1) s.threshold1 = a.arg_int(1);
     if (a.argc() > 2) s.threshold2 = a.arg_int(2);

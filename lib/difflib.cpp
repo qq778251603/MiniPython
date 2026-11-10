@@ -45,7 +45,7 @@ struct MatcherState{
 // Key of an element for hashing
 // ᠬᠡᠰᠡᠭ ᠦᠨ ᠲᠦᠯᠬᠢᠭᠦᠷ
 std::string elementKey(cffi& a, const value& v){
-    return pythonRepr(*a.vm, v);
+    return pythonRepr(*a.vmPtr, v);
 }
 
 // 取得实例状态
@@ -64,8 +64,8 @@ MatcherState* stateOf(cffi& a){
 // Read a sequence into an element list
 // ᠳᠠᠪᠬᠠᠷᠢᠶ᠎ᠠ ᠢ ᠬᠡᠰᠡᠭ ᠦᠨ ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠪᠣᠯᠭᠠᠨ᠎ᠠ
 bool readSequence(cffi& a, const value& source, std::vector<value>& items){
-    a.vm->materializeIterable(source, items);
-    return !a.vm->hasError();
+    a.vmPtr->materializeIterable(source, items);
+    return !a.vmPtr->hasError();
 }
 
 // 重建 b 索引
@@ -281,7 +281,7 @@ value codeTuple(cffi& a, const OpCode& code){
         a.mkstr(code.tag), a.mkint(code.i1), a.mkint(code.i2),
         a.mkint(code.j1), a.mkint(code.j2)
     };
-    return a.vm->makeTuple(items);
+    return a.vmPtr->makeTuple(items);
 }
 
 // 匹配块转元组
@@ -289,7 +289,7 @@ value codeTuple(cffi& a, const OpCode& code){
 // ᠲᠠᠭᠠᠷᠠᠯ ᠬᠡᠰᠡᠭ ᠢ ᠪᠣᠯᠪᠣᠰᠤᠨ ᠪᠣᠯᠭᠠᠨ᠎ᠠ
 value blockTuple(cffi& a, const MatchBlock& block){
     std::vector<value> items = {a.mkint(block.a), a.mkint(block.b), a.mkint(block.size)};
-    return a.vm->makeTuple(items);
+    return a.vmPtr->makeTuple(items);
 }
 
 // 读取行列表
@@ -297,9 +297,9 @@ value blockTuple(cffi& a, const MatchBlock& block){
 // ᠮᠥᠷᠢ ᠶᠢᠨ ᠵᠢᠭᠰᠠᠭ᠎ᠠᠯ ᠢ ᠦᠨᠰᠢᠬᠦ
 bool readLines(cffi& a, const value& source, std::vector<std::string>& lines){
     std::vector<value> items;
-    a.vm->materializeIterable(source, items);
-    if (a.vm->hasError()) return false;
-    for (auto& item : items) lines.push_back(a.vm->toString(item));
+    a.vmPtr->materializeIterable(source, items);
+    if (a.vmPtr->hasError()) return false;
+    for (auto& item : items) lines.push_back(a.vmPtr->toString(item));
     return true;
 }
 
