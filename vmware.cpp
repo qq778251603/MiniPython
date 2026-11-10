@@ -2499,15 +2499,56 @@ value vm::findVariable(const std::string& name){
             }
         }
     }
+
+    // 脚本模块 (loadpy / mp_vm_add_module) 的 "模块名.成员" 名字解析:
+    // 顶层全局对象 → 函数 → 类, 与 cffi 库前缀访问保持一致。
+    auto modIt = scriptModuleGlobals.find(libraryName);
+    if (modIt != scriptModuleGlobals.end()){
+        auto vit = modIt->second.find(rest);
+        if (vit != modIt->second.end()) return vit->second;
+    }
+    if (const script_t* sl = findScriptLibrary(libraryName)){
+        for (auto& fn : sl->functions){
+            if (fn.name == rest){
+                value r;
+                r.type = "function";
+                r.ptr = const_cast<function_t*>(&fn);
+                return r;
+            }
+        }
+        for (auto& klass : sl->classes){
+            if (klass.name == rest){
+                initializeClass(const_cast<class_t&>(klass));
+                if (failed) return makeNone();
+                value r;
+                r.type = "class";
+                r.ptr = const_cast<class_t*>(&klass);
+                return r;
+            }
+        }
+    }
     return makeNone();
 }
 
 void vm::setVariable(const std::string& name, const value& v){
     if (scopes.empty()) scopes.push_back({});
 
+    auto isCapture = [&](size_t idx){
+        return std::find(captureScopeIndices.begin(), captureScopeIndices.end(), idx) !=
+               captureScopeIndices.end();
+    };
+
     if (!globalNameStack.empty() && globalNameStack.back() &&
         std::find(globalNameStack.back()->begin(), globalNameStack.back()->end(), name) !=
         globalNameStack.back()->end()){
+        // global 赋值: 跳过最内层局部层, 跳过 capture, 找到最近的一层
+        // 主模块函数: [主全局, 局部]  → 跳过局部 → 命中主全局
+        // 子模块函数: [主全局, 模块全局, 局部] → 跳过局部 → 命中模块全局
+        for (size_t i = scopes.size() - 1; i-- > 0;){
+            if (isCapture(i)) continue;
+            scopes[i][name] = v;
+            return;
+        }
         scopes.front()[name] = v;
         return;
     }
@@ -2515,10 +2556,6 @@ void vm::setVariable(const std::string& name, const value& v){
     if (!nonlocalNameStack.empty() && nonlocalNameStack.back() &&
         std::find(nonlocalNameStack.back()->begin(), nonlocalNameStack.back()->end(), name) !=
         nonlocalNameStack.back()->end()){
-        auto isCapture = [&](size_t idx){
-            return std::find(captureScopeIndices.begin(), captureScopeIndices.end(), idx) !=
-                   captureScopeIndices.end();
-        };
         if (scopes.size() >= 2){
             for (size_t i = scopes.size() - 1; i-- > 0;){
                 if (isCapture(i)) continue;
@@ -2535,6 +2572,12 @@ void vm::setVariable(const std::string& name, const value& v){
                 }
             }
         }
+        // nonlocal 找不到时的 fallback: 跟 global 一样写到最近一层
+        for (size_t i = scopes.size() - 1; i-- > 0;){
+            if (isCapture(i)) continue;
+            scopes[i][name] = v;
+            return;
+        }
         scopes.front()[name] = v;
         return;
     }
@@ -2544,9 +2587,21 @@ void vm::setVariable(const std::string& name, const value& v){
 void vm::removeVariable(const std::string& name){
     if (scopes.empty()) return;
 
+    auto isCapture = [&](size_t idx){
+        return std::find(captureScopeIndices.begin(), captureScopeIndices.end(), idx) !=
+               captureScopeIndices.end();
+    };
+
     if (!globalNameStack.empty() && globalNameStack.back() &&
         std::find(globalNameStack.back()->begin(), globalNameStack.back()->end(), name) !=
         globalNameStack.back()->end()){
+        // 跟 setVariable 对应: 跳过局部+capture, 找到最近一层
+        for (size_t i = scopes.size() - 1; i-- > 0;){
+            if (isCapture(i)) continue;
+            auto it = scopes[i].find(name);
+            if (it != scopes[i].end()) scopes[i].erase(it);
+            return;
+        }
         auto it = scopes.front().find(name);
         if (it != scopes.front().end()) scopes.front().erase(it);
         return;
@@ -4356,6 +4411,17 @@ value vm::evalOperand(const std::string& item, const span_t& span){
                             value dynamicValue = makeNone();
                             resolved = instance->dynamicGet(*this, instance->handle, member, dynamicValue);
                             if (resolved) v = dynamicValue;
+                        }
+                        // —— 脚本模块代理 (import windows 得到的 native_object) ——
+                        // 表达式里的 "windows.MB_OK" 走的是这条路径, 而 vm::getAttribute
+                        // 才有模块 globals / functions / classes 的查找逻辑; 直接复用它,
+                        // 保证主脚本能访问子模块顶层定义的全局对象 (常量、类、函数)。
+                        if (!resolved && instance->library &&
+                            !instance->typeName.empty() &&
+                            scriptModuleLibIndex.count(instance->typeName)){
+                            v = getAttribute(v, member);
+                            if (failed) return makeNone();
+                            resolved = true;   // 值为 None 也算已解析 (如 VOID = None)
                         }
                         if (!resolved && member == "__name__"){
                             std::string typeName = !instance->typeName.empty()
@@ -6338,6 +6404,49 @@ value vm::getAttribute(const value& obj, const std::string& name){
             if (instance->dynamicGet(*this, instance->handle, name, dynamicValue)) return dynamicValue;
         }
 
+        // —— 脚本模块代理识别 ——
+        // import 出来的脚本模块是 native_object; 用 typeName 识别, 不能依赖
+        // instance->library->name: scriptModuleLibs 是 vector, 再导入其它模块时
+        // push_back 会让旧的 shell 指针失效, 解引用它是未定义行为。
+        // 属性查找走: globals → functions → classes
+        if (instance->library && !instance->typeName.empty() &&
+            scriptModuleLibIndex.count(instance->typeName)){
+            for (auto& sl : scriptLibraries){
+                if (sl.first == instance->typeName){
+
+                    // 1) 模块顶层 globals (executeScriptModule 保存下来的)
+                    auto git = scriptModuleGlobals.find(sl.first);
+                    if (git != scriptModuleGlobals.end()){
+                        auto vit = git->second.find(name);
+                        if (vit != git->second.end()) return vit->second;
+                    }
+
+                    // 2) 编译期就有的 functions / classes
+                    for (auto& f : sl.second.functions){
+                        if (f.name == name){
+                            value r;
+                            r.type = "function";
+                            r.ptr = const_cast<function_t*>(&f);
+                            return r;
+                        }
+                    }
+                    for (auto& c : sl.second.classes){
+                        if (c.name == name){
+                            initializeClass(const_cast<class_t&>(c));
+                            if (failed) break;
+                            value r;
+                            r.type = "class";
+                            r.ptr = const_cast<class_t*>(&c);
+                            return r;
+                        }
+                    }
+
+                    raiseError("AttributeError", "'" + sl.first + "' object has no attribute '" + name + "'");
+                    return makeNone();
+                }
+            }
+        }
+
         for (auto* lib : cffiLibraries){
             if (instance->library == lib){
                 auto funcIt = lib->functions.find(name);
@@ -6704,6 +6813,18 @@ void vm::executeScriptModule(const std::string& name){
         if (lib.first == name){
             executedScriptModules.insert(name);
 
+            // —— 关键：用独立作用域执行子模块顶层代码 ——
+            // 这样子模块函数体内的名字查找会命中子模块自己的 globals,
+            // 不会串到主模块的 scopes[0] 里, 保证行为隔离。
+            auto prevScopes = scopes;
+            scopes.clear();
+            scopes.push_back({});
+
+            // 子模块要有自己的 __name__ (模块名), 与 CPython 一致。
+            // 该名字同时会随 scopes 一起被收进 scriptModuleGlobals,
+            // 因此 windows.__name__ / 模块函数内的 __name__ 都能取到模块名。
+            scopes.back()["__name__"] = makeString(name);
+
             const script_t* prevScriptPtr = currentScript;
             currentScript = &lib.second;
 
@@ -6715,6 +6836,14 @@ void vm::executeScriptModule(const std::string& name){
 
             frames.pop_back();
             currentScript = prevScriptPtr;
+
+            // 把子模块顶层 globals 收集起来, 供 import 后属性查找使用
+            if (!scopes.empty()){
+                scriptModuleGlobals[name] = scopes.back();
+            }
+
+            // 恢复主模块作用域
+            scopes = std::move(prevScopes);
             return;
         }
     }
@@ -6958,6 +7087,33 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
 
     auto savedCallResults = callResults;
     callResults.clear();
+
+    // —— 子模块函数: 注入所属脚本模块的 globals 作为一层 scope ——
+    // 这样子模块函数体内的全局名查找 (如 MB_OK) 能正确命中自己模块
+    // 的 globals, 而不会串到主模块作用域。
+    // 只有注册进 scriptModuleGlobals 的子模块才会 push 额外层,
+    // 主模块函数没有对应条目, 不受影响。
+    std::string fnModName;
+    if (ownerScript){
+        // loadpy(name, script) 注册时 script_t::name 通常为空, 不能靠它找模块;
+        // 用 ownerScript 指针反查注册名, 才能命中 scriptModuleGlobals。
+        for (auto& sl : scriptLibraries){
+            if (&sl.second == ownerScript){
+                fnModName = sl.first;
+                break;
+            }
+        }
+        if (fnModName.empty()) fnModName = ownerScript->name;
+    }
+    if (!fnModName.empty()){
+        auto git = scriptModuleGlobals.find(fnModName);
+        if (git != scriptModuleGlobals.end()){
+            scopes.push_back(git->second);   // 拷贝一份模块 globals 作为额外 scope 层
+        } else {
+            fnModName.clear();
+        }
+    }
+
     scopes.push_back({});
     for (size_t i = 0; i < function->argNames.size(); ++i){
         const std::string& name = function->argNames[i];
@@ -6995,7 +7151,9 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
         gs->asyncGen = function->isCoroutine && function->isGenerator;
         gs->globalNames = &function->globalNames;
         gs->savedScopeDepth = scopes.size();
-        scopes.pop_back();
+        gs->moduleName = fnModName;              // 记住所属模块名, 用于 resume 时恢复 globals 层
+        scopes.pop_back();                       // 弹出局部
+        if (!fnModName.empty()) scopes.pop_back();  // 弹出模块 globals 层
         frames.pop_back();
         recursionDepth--;
         globalNameStack.pop_back();
@@ -7009,7 +7167,8 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
     bool returned = false;
     value returnValue = makeNone();
     executeBody(function->body, returned, returnValue);
-    scopes.pop_back();
+    scopes.pop_back();                       // 弹出局部
+    if (!fnModName.empty()) scopes.pop_back();  // 弹出模块 globals 层
     frames.pop_back();
     recursionDepth--;
     globalNameStack.pop_back();
@@ -7366,6 +7525,15 @@ void vm::generatorResumeBody(GeneratorState* gs, value& out, bool asyncCompletio
         const script_t* ownerScript = gs->fn ? findFunctionOwner(gs->fn) : nullptr;
         if (ownerScript) currentScript = ownerScript;
     }
+
+    // 恢复模块 globals 层 (如果生成器所属脚本模块有 globals)
+    if (!gs->moduleName.empty()){
+        auto git = scriptModuleGlobals.find(gs->moduleName);
+        if (git != scriptModuleGlobals.end()){
+            scopes.push_back(git->second);
+        }
+    }
+
     scopes.push_back(std::move(gs->localScope));
     globalNameStack.push_back(gs->globalNames);
     int functionLine = gs->fn && !gs->fn->body.empty() ? gs->fn->body[0].line : 0;
@@ -7391,7 +7559,8 @@ void vm::generatorResumeBody(GeneratorState* gs, value& out, bool asyncCompletio
 
     for (auto& kv : gs->forStates) kv.second.target = nullptr;
     gs->localScope = std::move(scopes.back());
-    scopes.pop_back();
+    scopes.pop_back();                              // 弹出局部
+    if (!gs->moduleName.empty()) scopes.pop_back(); // 弹出模块 globals 层
     frames.pop_back();
     recursionDepth--;
     globalNameStack.pop_back();
@@ -10626,8 +10795,9 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                 const std::string& alias = ins.operands[1];
                 bool found = false;
                 bool isScriptLib = false;
+                ffilib* matchedCffiLib = nullptr;
                 for (auto* lib : cffiLibraries){
-                    if (lib && lib->name == moduleName){ found = true; break; }
+                    if (lib && lib->name == moduleName){ found = true; matchedCffiLib = lib; break; }
                 }
                 if (!found){
                     for (auto& lib : scriptLibraries){
@@ -10642,7 +10812,7 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                         loadpyd(moduleName, pydBytes);
                         if (!failed){
                             for (auto* lib : cffiLibraries){
-                                if (lib && lib->name == moduleName){ found = true; break; }
+                                if (lib && lib->name == moduleName){ found = true; matchedCffiLib = lib; break; }
                             }
                         }
                     }
@@ -10653,22 +10823,36 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
 
                 if (isScriptLib && !failed){
                     executeScriptModule(moduleName);
-                }
+                    if (failed) goto top_of_loop;
 
-                if (alias != moduleName && !failed){
-                    for (auto* lib : cffiLibraries){
-                        if (lib && lib->name == moduleName){
-                            ffi_instance* moduleObj = new ffi_instance();
-                            moduleObj->library = lib;
-                            moduleObj->klass = nullptr;
-                            moduleObj->typeName = moduleName;
-                            setVariable(alias, value("native_object",
-                                                     keep(vk_native_object, moduleObj), this));
-                            break;
-                        }
+                    // 为脚本模块准备一个"壳" ffilib, 让 native_object 能挂上它,
+                    // 后续 getAttribute 会根据 typeName 走 script 模块查找路径
+                    ffilib* shell = nullptr;
+                    auto idxIt = scriptModuleLibIndex.find(moduleName);
+                    if (idxIt != scriptModuleLibIndex.end()){
+                        shell = &scriptModuleLibs[idxIt->second];
+                    } else {
+                        scriptModuleLibs.push_back(ffilib());
+                        scriptModuleLibs.back().name = moduleName;
+                        scriptModuleLibIndex[moduleName] = scriptModuleLibs.size() - 1;
+                        shell = &scriptModuleLibs.back();
                     }
-                }
 
+                    ffi_instance* moduleObj = new ffi_instance();
+                    moduleObj->library = shell;
+                    moduleObj->klass = nullptr;
+                    moduleObj->typeName = moduleName;
+                    setVariable(alias, value("native_object",
+                                             keep(vk_native_object, moduleObj), this));
+                } else if (matchedCffiLib && !failed){
+                    // cffi / pyd 模块, alias 映射 (原逻辑)
+                    ffi_instance* moduleObj = new ffi_instance();
+                    moduleObj->library = matchedCffiLib;
+                    moduleObj->klass = nullptr;
+                    moduleObj->typeName = moduleName;
+                    setVariable(alias, value("native_object",
+                                             keep(vk_native_object, moduleObj), this));
+                }
             }
             i++;
             continue;
@@ -10735,9 +10919,19 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                             break;
                         }
                     }
-                    // Script library star import
+                    // Script library star import —— 先 star globals, 再 star functions/classes
                     for (auto& lib : scriptLibraries){
                         if (lib.first == moduleName){
+                            // 1) 顶层 globals (执行后的真实值)
+                            auto git = scriptModuleGlobals.find(lib.first);
+                            if (git != scriptModuleGlobals.end()){
+                                for (auto& kv : git->second){
+                                    if (!kv.first.empty() && kv.first[0] != '_'){
+                                        setVariable(kv.first, kv.second);
+                                    }
+                                }
+                            }
+                            // 2) 编译期 functions / classes
                             for (auto& f : lib.second.functions){
                                 if (!f.name.empty() && f.name[0] != '_'){
                                     value fnVal;
@@ -10802,6 +10996,17 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                         if (lib.first == moduleName){
                             foundModule = true;
 
+                            // 1) 顶层 globals —— 执行后真实值 (常量赋值 etc.)
+                            auto git = scriptModuleGlobals.find(lib.first);
+                            if (git != scriptModuleGlobals.end()){
+                                auto vit = git->second.find(memberName);
+                                if (vit != git->second.end()){
+                                    setVariable(alias, vit->second);
+                                    break;
+                                }
+                            }
+
+                            // 2) 编译期 functions
                             function_t* fn = nullptr;
                             for (auto& f : lib.second.functions){
                                 if (f.name == memberName){ fn = &f; break; }
@@ -10814,6 +11019,7 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                                 break;
                             }
 
+                            // 3) 编译期 classes
                             class_t* cls = nullptr;
                             for (auto& c : lib.second.classes){
                                 if (c.name == memberName){ cls = &c; break; }
@@ -10828,12 +11034,8 @@ void vm::executeBody(std::vector<execute_t>& body, bool& returned, value& return
                                 break;
                             }
 
-                            for (auto& v : lib.second.variables){
-                                if (v.name == memberName){
-                                    setVariable(alias, makeNone());
-                                    break;
-                                }
-                            }
+                            // 都没找到 → AttributeError
+                            raiseError("AttributeError", "module '" + lib.first + "' has no attribute '" + memberName + "'");
                             break;
                         }
                     }

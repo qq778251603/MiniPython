@@ -228,6 +228,10 @@ struct GeneratorState{
     const std::vector<std::string>* globalNames = nullptr;
 
     size_t savedScopeDepth = 0;
+
+// 所属脚本模块名 (空=主模块或非脚本模块)
+// 用于恢复时从 scriptModuleGlobals 取模块 globals 层
+    std::string moduleName;
 };
 
 
@@ -972,6 +976,20 @@ private:
     std::set<std::string> executedScriptModules;
 
     std::vector<ffilib*> cffiLibraries;
+
+// 脚本模块顶层全局变量表 (模块名 → globals dict)
+// 保存每次 executeScriptModule 执行后得到的模块顶层 globals, 供 import/属性查找
+// ᠪᠢᠴᠢᠭᠵᠢᠯᠳᠡᠨ᠎ᠡ ᠮᠣᠳᠤᠯᠢ ᠶᠢᠨ ᠳᠠᠷᠠᠯᠠᠯᠳ᠋ᠭ᠎ᠠ ᠭᠠᠷᠴᠠᠭ ᠵᠢᠰᠢᠶ᠎ᠡ
+    std::unordered_map<std::string, std::map<std::string, value>> scriptModuleGlobals;
+
+// 脚本模块的"壳" ffilib —— 只有 name 字段有值, functions/data/classes 全空。
+// 用来让 native_object 挂一个 library 指针, 以便 getAttribute 的 native_object
+// 分支能把它识别成"脚本模块"并走 scriptLibraries + scriptModuleGlobals 查找路径。
+// ᠪᠢᠴᠢᠭᠵᠢᠯᠳᠡᠨ᠎ᠡ ᠮᠣᠳᠤᠯᠢ ᠶᠢᠨ "ᠪᠢᠲ᠋ᠢ" ffilib
+    std::vector<ffilib> scriptModuleLibs;
+
+// 脚本模块名 → 在 scriptModuleLibs 里的索引 (快速查找)
+    std::unordered_map<std::string, size_t> scriptModuleLibIndex;
 
     const script_t* currentScript = nullptr;
 
