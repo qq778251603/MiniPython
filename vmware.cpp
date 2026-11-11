@@ -1289,7 +1289,7 @@ std::string minipy::pythonRepr(vm& vm, const value& v){
 }
 
 vm::vm(){
-    scopes.push_back({});
+    scopes.emplace_back();
     lastCallResult = {"none", nullptr};
     loadlib(cffi_builtins_lib());
 }
@@ -2531,7 +2531,7 @@ value vm::findVariable(const std::string& name){
 }
 
 void vm::setVariable(const std::string& name, const value& v){
-    if (scopes.empty()) scopes.push_back({});
+    if (scopes.empty()) scopes.emplace_back();
 
     auto isCapture = [&](size_t idx){
         return std::find(captureScopeIndices.begin(), captureScopeIndices.end(), idx) !=
@@ -6814,16 +6814,14 @@ void vm::executeScriptModule(const std::string& name){
             executedScriptModules.insert(name);
 
             // —— 关键：用独立作用域执行子模块顶层代码 ——
-            // 这样子模块函数体内的名字查找会命中子模块自己的 globals,
-            // 不会串到主模块的 scopes[0] 里, 保证行为隔离。
+            // 子模块 globals 直接引用 scriptModuleGlobals[name] 里的原始表,
+            // 不复制快照: 顶层代码、模块函数、生成器读写的都是同一张表,
+            // 因此模块全局变量跨调用可持久, 也不会串到主模块 scopes[0]。
             auto prevScopes = scopes;
             scopes.clear();
-            scopes.push_back({});
-
-            // 子模块要有自己的 __name__ (模块名), 与 CPython 一致。
-            // 该名字同时会随 scopes 一起被收进 scriptModuleGlobals,
-            // 因此 windows.__name__ / 模块函数内的 __name__ 都能取到模块名。
-            scopes.back()["__name__"] = makeString(name);
+            auto& moduleGlobals = scriptModuleGlobals[name];
+            moduleGlobals["__name__"] = makeString(name);
+            scopes.emplace_back(&moduleGlobals);
 
             const script_t* prevScriptPtr = currentScript;
             currentScript = &lib.second;
@@ -6837,10 +6835,7 @@ void vm::executeScriptModule(const std::string& name){
             frames.pop_back();
             currentScript = prevScriptPtr;
 
-            // 把子模块顶层 globals 收集起来, 供 import 后属性查找使用
-            if (!scopes.empty()){
-                scriptModuleGlobals[name] = scopes.back();
-            }
+            // 顶层 globals 已实时写入 scriptModuleGlobals[name], 无需回写快照
 
             // 恢复主模块作用域
             scopes = std::move(prevScopes);
@@ -7089,8 +7084,8 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
     callResults.clear();
 
     // —— 子模块函数: 注入所属脚本模块的 globals 作为一层 scope ——
-    // 这样子模块函数体内的全局名查找 (如 MB_OK) 能正确命中自己模块
-    // 的 globals, 而不会串到主模块作用域。
+    // 直接引用 scriptModuleGlobals 里的原始表 (不复制), 函数内对全局
+    // 变量的赋值当场落到模块表上, 下次调用 (含生成器 resume) 能看到最新值。
     // 只有注册进 scriptModuleGlobals 的子模块才会 push 额外层,
     // 主模块函数没有对应条目, 不受影响。
     std::string fnModName;
@@ -7108,13 +7103,13 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
     if (!fnModName.empty()){
         auto git = scriptModuleGlobals.find(fnModName);
         if (git != scriptModuleGlobals.end()){
-            scopes.push_back(git->second);   // 拷贝一份模块 globals 作为额外 scope 层
+            scopes.emplace_back(&git->second);  // 引用原始模块 globals 表, 不拷贝
         } else {
             fnModName.clear();
         }
     }
 
-    scopes.push_back({});
+    scopes.emplace_back();
     for (size_t i = 0; i < function->argNames.size(); ++i){
         const std::string& name = function->argNames[i];
         value value = makeNone();
@@ -7144,7 +7139,7 @@ value vm::invoke(function_t* function, const std::vector<value>& args, value* se
 
         auto* gs = new GeneratorState();
         gs->fn = function;
-        gs->localScope = std::move(scopes.back());
+        gs->localScope = std::move(scopes.back().map());
         gs->pc = 0;
         gs->status = GeneratorState::CREATED;
         gs->isCoroutine = function->isCoroutine;
@@ -7526,11 +7521,21 @@ void vm::generatorResumeBody(GeneratorState* gs, value& out, bool asyncCompletio
         if (ownerScript) currentScript = ownerScript;
     }
 
-    // 恢复模块 globals 层 (如果生成器所属脚本模块有 globals)
+    // 记录 resume 入口的作用域栈深, 出口必须精确回到这个深度。
+    const size_t entryScopeDepth = scopes.size();
+    bool moduleScopePushed = false;
+
+    // 子模块生成器/协程: 以 gs->moduleName 为 key 读取 scriptModuleGlobals 里
+    // 该模块的原始 globals 表并直接引用 (不拷贝)。每一轮 resume 都重新读取,
+    // 不把 map 快照存进 GeneratorState, 这样暂停期间模块顶层后续赋值能被
+    // 下一轮 resume 看到。模块全局 scope 在前, 局部 scope 在后, 与普通函数
+    // 调用栈结构一致。moduleName 为空 (主模块) 或找不到表项时都不压栈,
+    // 维持原有行为。
     if (!gs->moduleName.empty()){
         auto git = scriptModuleGlobals.find(gs->moduleName);
         if (git != scriptModuleGlobals.end()){
-            scopes.push_back(git->second);
+            scopes.emplace_back(&git->second);
+            moduleScopePushed = true;
         }
     }
 
@@ -7558,9 +7563,25 @@ void vm::generatorResumeBody(GeneratorState* gs, value& out, bool asyncCompletio
     executeBody(gs->fn->body, returned, returnValue, gs->pc, &paused, &pausePc, gs);
 
     for (auto& kv : gs->forStates) kv.second.target = nullptr;
-    gs->localScope = std::move(scopes.back());
-    scopes.pop_back();                              // 弹出局部
-    if (!gs->moduleName.empty()) scopes.pop_back(); // 弹出模块 globals 层
+
+    // —— 出口: 与入口压栈严格成对, 压几次就弹几次 ——
+    // 本轮期望栈深 = 入口 + 模块 globals 层(0/1) + 局部层(1)。
+    const size_t expectedDepth = entryScopeDepth + (moduleScopePushed ? 1 : 0) + 1;
+    // executeBody 若遗留多余层, 先规整掉, 保证 scopes.back() 就是局部 scope
+    while (scopes.size() > expectedDepth) scopes.pop_back();
+    // 1) 先保存并弹出局部 scope (gs->localScope)
+    if (scopes.size() == expectedDepth){
+        gs->localScope = std::move(scopes.back().map());
+        scopes.pop_back();
+    }
+    // 2) 再弹出模块 globals scope。该层是 scriptModuleGlobals 原始表的引用,
+    //    本轮对模块全局的修改已直接落在原始表上, 无需回写。
+    if (moduleScopePushed && scopes.size() == entryScopeDepth + 1){
+        scopes.pop_back();
+    }
+    // 3) 兜底: 任何嵌套/异常路径都不把 scope 永久遗留在 vm.scopes 上
+    while (scopes.size() > entryScopeDepth) scopes.pop_back();
+
     frames.pop_back();
     recursionDepth--;
     globalNameStack.pop_back();
@@ -11411,7 +11432,7 @@ bool vm::initializeClass(class_t& klass){
 
 void* vm::run(){
     scopes.clear();
-    scopes.push_back({});
+    scopes.emplace_back();
     lastCallResult = makeNone();
     callResults.clear();
     scopes[0]["__name__"] = makeString("__main__");

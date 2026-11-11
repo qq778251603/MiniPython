@@ -37,6 +37,45 @@ struct value{
     ~value();
 };
 
+// 作用域栈帧
+// 默认自己持有一张变量表; 也可以"引用"外部变量表 (如 scriptModuleGlobals
+// 中脚本模块的全局表)。引用帧不复制外部表, 因此模块顶层、模块函数、
+// 生成器对全局变量的读写都落在同一张原始表上, 赋值可跨调用持久保留。
+// Scope stack frame: owns a variable map by default, or aliases an external
+// map (e.g. a script module's globals). Aliased frames never copy the map.
+struct scope_frame{
+    using map_type = std::map<std::string, value>;
+    using iterator = map_type::iterator;
+    using const_iterator = map_type::const_iterator;
+
+    map_type owned;
+    map_type* alias = nullptr;
+
+    scope_frame() = default;
+    scope_frame(const map_type& m) : owned(m) {}
+    scope_frame(map_type&& m) : owned(std::move(m)) {}
+    explicit scope_frame(map_type* external) : alias(external) {}
+
+    map_type& map(){ return alias ? *alias : owned; }
+    const map_type& map() const { return alias ? *alias : owned; }
+
+    value& operator[](const std::string& key){ return map()[key]; }
+    iterator find(const std::string& key){ return map().find(key); }
+    const_iterator find(const std::string& key) const { return map().find(key); }
+    iterator begin(){ return map().begin(); }
+    iterator end(){ return map().end(); }
+    const_iterator begin() const { return map().begin(); }
+    const_iterator end() const { return map().end(); }
+    iterator erase(const_iterator pos){ return map().erase(pos); }
+    size_t erase(const std::string& key){ return map().erase(key); }
+    bool empty() const { return map().empty(); }
+    size_t size() const { return map().size(); }
+    template <class... Args>
+    auto emplace(Args&&... args){ return map().emplace(std::forward<Args>(args)...); }
+
+    operator const map_type&() const { return map(); }
+};
+
 // ffilib
 // ffilib
 // ffilib
@@ -941,9 +980,11 @@ public:
 // ---- private 成员变量 ----
 private:
 // 作用域栈, scopes.back() 是当前作用域
-// Scope stack; scopes.back() is the current scope
+// 栈帧可引用 scriptModuleGlobals 里的原始模块 globals 表 (不复制)
+// Scope stack; scopes.back() is the current scope.
+// A frame may alias the original module globals map (no copy).
 // ᠬᠠᠷᠢᠶ᠎ᠠ ᠶᠢᠨ ᠰᠲᠠᠭᠭᠡᠷ
-    std::vector<std::map<std::string, value>> scopes;
+    std::vector<scope_frame> scopes;
 
 // 堆对象登记表 (pointer → heap_value)
 // Heap object registry (pointer → heap_value)
